@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button, Text, TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Avatar } from '../../src/components/Avatar';
 import { pickFromLibrary, uploadMedia } from '../../src/lib/media';
 import { useAuth } from '../../src/state/auth';
@@ -8,6 +9,7 @@ export default function Home() {
   const me = useAuth((s) => s.me);
   const updateProfile = useAuth((s) => s.updateProfile);
   const logout = useAuth((s) => s.logout);
+  const router = useRouter();
 
   const [username, setUsername] = useState(me?.username ?? '');
   const [displayName, setDisplayName] = useState(me?.displayName ?? '');
@@ -66,6 +68,7 @@ export default function Home() {
       />
       {message && <Text>{message}</Text>}
       <Button title="Save" onPress={save} />
+      <Button title="Settings" onPress={() => router.push('/settings')} />
       <Button title="Log out" color="crimson" onPress={logout} />
     </View>
   );

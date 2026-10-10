@@ -8,8 +8,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import Redis from 'ioredis';
 import { Pool, PoolClient } from 'pg';
+import { Events } from '../../common/events';
 import { PG_POOL, REDIS } from '../../common/infra.module';
 import { MediaService } from '../media/media.service';
 
@@ -35,6 +37,7 @@ export class FriendsService {
     @Inject(PG_POOL) private readonly pg: Pool,
     @Inject(REDIS) private readonly redis: Redis,
     private readonly media: MediaService,
+    private readonly events: EventEmitter2,
   ) {}
 
   // ---- relationship lookup (also used by the users module) -----------------------------------
@@ -128,6 +131,7 @@ export class FriendsService {
        RETURNING id, status, created_at AS "createdAt"`,
       [me, toId],
     );
+    this.events.emit(Events.FriendRequest, { fromUserId: me, toUserId: toId, requestId: r.rows[0].id });
     return { ...r.rows[0], fromUser: me, toUser: toId };
   }
 
@@ -145,7 +149,10 @@ export class FriendsService {
         'INSERT INTO friendships (user_a, user_b) VALUES ($1, $2) ON CONFLICT DO NOTHING',
         [a, b],
       );
-      return { friendId: r.rows[0].from_user, status: 'accepted' as const };
+      return { friendId: r.rows[0].from_user as string, status: 'accepted' as const };
+    }).then((out) => {
+      this.events.emit(Events.FriendAccepted, { accepterId: me, requesterId: out.friendId });
+      return out;
     });
   }
 

@@ -123,10 +123,13 @@ export class AuthService {
   }
 
   async revokeSession(userId: string, sessionId: string) {
-    await this.pg.query(
-      'UPDATE sessions SET revoked_at = now() WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL',
+    const r = await this.pg.query(
+      `UPDATE sessions SET revoked_at = now()
+        WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL RETURNING device_id`,
       [sessionId, userId],
     );
+    // A logged-out device must stop receiving this account's pushes.
+    if (r.rows[0]) await this.pg.query('UPDATE devices SET push_token = NULL WHERE id = $1', [r.rows[0].device_id]);
   }
 
   async listSessions(userId: string, currentSessionId: string) {

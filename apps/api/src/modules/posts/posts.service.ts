@@ -6,7 +6,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Pool, PoolClient } from 'pg';
+import { Events } from '../../common/events';
 import { PG_POOL } from '../../common/infra.module';
 import { MediaService, MediaView } from '../media/media.service';
 import { RealtimeService } from '../realtime/realtime.service';
@@ -83,6 +85,7 @@ export class PostsService {
     @Inject(PG_POOL) private readonly pg: Pool,
     private readonly media: MediaService,
     private readonly realtime: RealtimeService,
+    private readonly events: EventEmitter2,
   ) {}
 
   // ---- create / read -------------------------------------------------------------------------
@@ -216,6 +219,9 @@ export class PostsService {
       await client.query('COMMIT');
       const row = r.rows[0];
       this.broadcastCounters(postId, row.likeCount, row.commentCount);
+      if (d.likeDelta > 0 && row.authorId !== me) {
+        this.events.emit(Events.PostLiked, { postId, authorId: row.authorId, actorId: me });
+      }
       return {
         postId,
         likeCount: row.likeCount as number,

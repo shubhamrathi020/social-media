@@ -11,9 +11,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AccessToken, RoomServiceClient, WebhookReceiver } from 'livekit-server-sdk';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import { Pool } from 'pg';
+import { Events } from '../../common/events';
 import { PG_POOL, REDIS } from '../../common/infra.module';
 import { FriendsService } from '../friends/friends.service';
 import { MediaService } from '../media/media.service';
@@ -66,6 +68,7 @@ export class LiveService {
     private readonly friends: FriendsService,
     private readonly media: MediaService,
     private readonly realtime: RealtimeService,
+    private readonly events: EventEmitter2,
     cfg: ConfigService,
   ) {
     this.apiKey = cfg.get('LIVEKIT_API_KEY') ?? 'devkey';
@@ -110,18 +113,25 @@ export class LiveService {
 
   /** The host's app calls this after it has connected and published. Friends are told then, not earlier. */
   async start(host: string, id: string): Promise<LiveView> {
+    // Only the first call announces the stream; repeating it must not re-notify friends.
     const r = await this.pg.query(
-      `UPDATE live_streams SET status = 'live', started_at = COALESCE(started_at, now())
-        WHERE id = $1 AND host_id = $2 AND status IN ('created', 'live')
-        RETURNING audience, title`,
+      `WITH prev AS (SELECT status FROM live_streams WHERE id = $1 AND host_id = $2 FOR UPDATE)
+       UPDATE live_streams s SET status = 'live', started_at = COALESCE(s.started_at, now())
+         FROM prev
+        WHERE s.id = $1 AND s.host_id = $2 AND s.status IN ('created', 'live')
+        RETURNING s.audience, s.title, prev.status AS "prevStatus"`,
       [id, host],
     );
     if (!r.rows[0]) throw new NotFoundException('Stream not found or already ended');
 
-    const audience = r.rows[0].audience;
-    const ids = audience === 'close_friends' ? await this.friends.closeFriendIds(host) : await this.friends.friendIds(host);
     const view = await this.view(host, id);
-    this.realtime.emitToUsers(ids, 'live:started', { liveId: id, hostId: host, title: r.rows[0].title });
+    if (r.rows[0].prevStatus === 'created') {
+      const audience = r.rows[0].audience;
+      const ids =
+        audience === 'close_friends' ? await this.friends.closeFriendIds(host) : await this.friends.friendIds(host);
+      this.realtime.emitToUsers(ids, 'live:started', { liveId: id, hostId: host, title: r.rows[0].title });
+      this.events.emit(Events.LiveStarted, { liveId: id, hostId: host, title: r.rows[0].title, audienceIds: ids });
+    }
     return view;
   }
 

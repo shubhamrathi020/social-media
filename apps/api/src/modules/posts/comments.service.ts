@@ -5,7 +5,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Pool } from 'pg';
+import { Events } from '../../common/events';
 import { PG_POOL } from '../../common/infra.module';
 import { MediaService } from '../media/media.service';
 import { RealtimeService } from '../realtime/realtime.service';
@@ -39,20 +41,23 @@ export class CommentsService {
     private readonly posts: PostsService,
     private readonly media: MediaService,
     private readonly realtime: RealtimeService,
+    private readonly events: EventEmitter2,
   ) {}
 
   async create(me: string, postId: string, dto: CreateCommentDto): Promise<CommentView> {
-    await this.posts.assertVisible(me, postId);
+    const { authorId: postAuthorId } = await this.posts.assertVisible(me, postId);
     const body = dto.body.trim();
     if (!body) throw new BadRequestException('Comment is empty');
 
+    let parentAuthorId: string | null = null;
     if (dto.parentId) {
       const parent = await this.pg.query(
-        'SELECT parent_id, deleted_at FROM comments WHERE id = $1 AND post_id = $2',
+        'SELECT parent_id, user_id, deleted_at FROM comments WHERE id = $1 AND post_id = $2',
         [dto.parentId, postId],
       );
       if (!parent.rows[0]) throw new BadRequestException('Parent comment not found');
       if (parent.rows[0].parent_id) throw new BadRequestException('Replies can only go one level deep');
+      parentAuthorId = parent.rows[0].user_id;
     }
 
     const client = await this.pg.connect();
@@ -85,6 +90,14 @@ export class CommentsService {
     const view = await this.getView(me, id);
     this.realtime.emitToRoom(`post:${postId}`, 'comment:new', view);
     this.posts.broadcastCounters(postId, counters.likeCount, counters.commentCount);
+    this.events.emit(Events.CommentCreated, {
+      postId,
+      commentId: id,
+      postAuthorId,
+      actorId: me,
+      parentAuthorId,
+      preview: body.slice(0, 80),
+    });
     return view;
   }
 

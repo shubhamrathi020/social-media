@@ -9,6 +9,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { RateLimit } from '../../common/rate-limit';
 import { AuthService } from './auth.service';
 import { OtpService } from './otp.service';
 import { OtpSender } from './otp-sender';
@@ -25,6 +26,7 @@ export class AuthController {
 
   @Post('otp/request')
   @HttpCode(204)
+  @RateLimit(60, 60, 'otp-request')
   async request(@Body() dto: RequestOtpDto) {
     const code = await this.otp.issue(dto.phone);
     await this.sender.send(dto.phone, code);
@@ -32,6 +34,7 @@ export class AuthController {
 
   @Post('otp/verify')
   @HttpCode(200)
+  @RateLimit(60, 60, 'otp-verify')
   async verify(@Body() dto: VerifyOtpDto) {
     await this.otp.verify(dto.phone, dto.code);
     return this.auth.loginWithPhone(dto.phone, dto.device);
@@ -39,6 +42,7 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(200)
+  @RateLimit(60, 60, 'refresh')
   refresh(@Body() dto: RefreshDto) {
     return this.auth.refresh(dto.refreshToken);
   }

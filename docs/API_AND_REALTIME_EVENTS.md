@@ -179,3 +179,22 @@ Connect with `auth: { token }`. Server auto-joins `user:{id}` and the user's con
 - **Robustness:** a LiveKit `room_finished` webhook ends streams whose host disappeared without calling `/end`.
 - **Mobile:** requires an Expo **development build** (`expo-dev-client`), because WebRTC is a native module. The live
   screens load it lazily so every other screen still works in Expo Go.
+
+## 8. As implemented (Phase 8)
+
+- **Domain events:** friends, posts, comments, live and chat emit in-process events (`friend.request`, `friend.accepted`,
+  `post.liked`, `comment.created`, `live.started`, `message.created`); the notifications module listens, so those modules
+  know nothing about notifications.
+- **Inbox:** `GET /notifications?cursor=`, `GET /notifications/unread-count`, `POST /notifications/read {ids?}`. Types:
+  `friend_request`, `friend_accepted`, `post_liked`, `comment`, `comment_reply`, `live_started`. Likes dedupe to one per
+  person per post; own actions and dislikes never notify. Live delivery as `notification:new` over the socket.
+- **Preferences:** `settings.notifications.*` decide what is created and pushed. Muted conversations get no message push.
+- **Push:** `PUT /devices/me {pushToken|null}` stores an Expo push token on the session's device. Messages are pushed only
+  to people with no live socket. Logging out clears the device token; tokens the push service reports invalid are dropped.
+  `PUSH_MODE=expo` sends for real (default in production); otherwise pushes are logged.
+- **Reports:** `POST /reports {entityType: user|post|comment|story, entityId, reason, details?}`. You can only report what
+  you can see; repeat reports are idempotent; 20 per day. There is no moderator UI yet: reports sit in `reports`.
+- **Rate limiting:** every route is limited per user (600/min) or per IP when unauthenticated (120/min), with stricter
+  per-route limits (`@RateLimit`). Responses carry `X-RateLimit-*` and `Retry-After`.
+- **Hardening:** `helmet` headers, `TRUST_PROXY` for real client IPs behind a load balancer, and a boot-time config check
+  that refuses placeholder secrets and `OTP_DEV_CODE` in production.

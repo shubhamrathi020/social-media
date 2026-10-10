@@ -1,9 +1,11 @@
 import { memo, useState } from 'react';
-import { FlatList, Image, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Alert, FlatList, Image, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { InfiniteData, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Avatar } from './Avatar';
+import { api, json } from '../lib/api';
 import { Page, Post, Reaction, Slide, postsApi } from '../lib/posts';
+import { useAuth } from '../state/auth';
 
 function VideoSlide({ url, size }: { url: string; size: number }) {
   const player = useVideoPlayer(url, (p) => {
@@ -31,6 +33,39 @@ function PostCardBase({ post, onOpen }: { post: Post; onOpen?: () => void }) {
   const { width } = useWindowDimensions();
   const qc = useQueryClient();
   const [index, setIndex] = useState(0);
+  const meId = useAuth((s) => s.me?.id);
+
+  function menu() {
+    if (post.author.id === meId) {
+      Alert.alert('Post', undefined, [
+        {
+          text: 'Delete post',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await postsApi.remove(post.id);
+              qc.invalidateQueries({ queryKey: ['feed'] });
+            } catch (e) {
+              Alert.alert('Could not delete', e instanceof Error ? e.message : '');
+            }
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+      return;
+    }
+    const report = (reason: string) =>
+      api('/reports', json({ entityType: 'post', entityId: post.id, reason }))
+        .then(() => Alert.alert('Thanks', 'We received your report.'))
+        .catch((e) => Alert.alert('Could not report', e instanceof Error ? e.message : ''));
+    Alert.alert('Report post', 'Why are you reporting this?', [
+      { text: 'Spam', onPress: () => report('spam') },
+      { text: 'Harassment', onPress: () => report('harassment') },
+      { text: 'Nudity', onPress: () => report('nudity') },
+      { text: 'Other', onPress: () => report('other') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
 
   const react = useMutation({
     mutationFn: ({ value }: { value: Reaction }) => postsApi.react(post.id, value),
@@ -62,6 +97,9 @@ function PostCardBase({ post, onOpen }: { post: Post; onOpen?: () => void }) {
             {post.audience === 'close_friends' ? '★ Close friends' : 'Public'}
           </Text>
         )}
+        <Pressable onPress={menu} style={{ marginLeft: 'auto', padding: 6 }}>
+          <Text style={{ fontSize: 18 }}>⋯</Text>
+        </Pressable>
       </View>
 
       <FlatList

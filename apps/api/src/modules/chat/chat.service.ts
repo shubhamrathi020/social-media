@@ -6,7 +6,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Pool, PoolClient } from 'pg';
+import { Events } from '../../common/events';
 import { PG_POOL } from '../../common/infra.module';
 import { FriendsService } from '../friends/friends.service';
 import { MediaService } from '../media/media.service';
@@ -45,6 +47,7 @@ export class ChatService {
     private readonly friends: FriendsService,
     private readonly media: MediaService,
     private readonly realtime: RealtimeService,
+    private readonly events: EventEmitter2,
   ) {}
 
   // ---- conversations -------------------------------------------------------------------------
@@ -266,7 +269,23 @@ export class ChatService {
     }
 
     const [message] = await this.toViews(me, [row]);
-    if (!duplicate) this.realtime.emitToUsers(members, 'message:new', message);
+    if (!duplicate) {
+      this.realtime.emitToUsers(members, 'message:new', message);
+      const label: Record<string, string> = {
+        image: 'Photo',
+        video: 'Video',
+        audio: 'Voice message',
+        file: 'File',
+      };
+      this.events.emit(Events.MessageCreated, {
+        conversationId: input.conversationId,
+        messageId: message.id,
+        senderId: me,
+        recipientIds: members.filter((m) => m !== me),
+        type: input.type,
+        preview: input.type === 'text' ? (payload.text ?? '').slice(0, 100) : (label[input.type] ?? 'New message'),
+      });
+    }
     return { message, duplicate };
   }
 
