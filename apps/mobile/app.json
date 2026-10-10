@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Social",
+    "slug": "social",
+    "scheme": "social",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["expo-router"],
+    "experiments": { "typedRoutes": true }
+  }
+}
