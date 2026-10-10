@@ -5,9 +5,11 @@ import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { assertSafeConfig } from './common/config-check';
+import { initSentry } from './modules/observability/observability.module';
 
 async function bootstrap() {
   assertSafeConfig(process.env);
+  initSentry();
 
   // rawBody is needed to verify LiveKit webhook signatures.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });

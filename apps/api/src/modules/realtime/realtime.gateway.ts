@@ -11,6 +11,7 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
 import type { Server, Socket } from 'socket.io';
 import { REDIS } from '../../common/infra.module';
+import { socketConnections } from '../observability/metrics';
 import { PresenceService } from './presence.service';
 import { RealtimeService, userRoom } from './realtime.service';
 
@@ -51,6 +52,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   }
 
   async handleConnection(socket: Socket) {
+    socketConnections.inc();
     const userId: string = socket.data.userId;
     await socket.join(userRoom(userId));
 
@@ -63,6 +65,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   }
 
   async handleDisconnect(socket: Socket) {
+    socketConnections.dec();
     const timer = this.beats.get(socket.id);
     if (timer) clearInterval(timer);
     this.beats.delete(socket.id);

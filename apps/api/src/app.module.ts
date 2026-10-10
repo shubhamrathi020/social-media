@@ -14,6 +14,7 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { MediaModule } from './modules/media/media.module';
 import { ModerationModule } from './modules/moderation/moderation.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ObservabilityModule } from './modules/observability/observability.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { ReportsModule } from './modules/reports/reports.module';
@@ -25,6 +26,7 @@ import { UsersModule } from './modules/users/users.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', '../../.env'] }),
     EventEmitterModule.forRoot(),
+    ObservabilityModule,
     InfraModule,
     AuthModule,
     MediaModule,

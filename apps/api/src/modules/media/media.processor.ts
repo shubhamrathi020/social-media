@@ -13,6 +13,7 @@ import sharp from 'sharp';
 import { PG_POOL } from '../../common/infra.module';
 import { MAX_VIDEO_SECONDS } from './media.rules';
 import { StorageService } from './storage.service';
+import { queueJobs } from '../observability/metrics';
 import { ContentScanner, decide, scanPolicy } from '../moderation/content-scanner';
 
 const QUEUE = 'media-processing';
@@ -51,6 +52,7 @@ export class MediaProcessor implements OnModuleInit, OnModuleDestroy {
   private queue!: Queue;
   private worker!: Worker;
   private conns: Redis[] = [];
+  private depthTimer?: NodeJS.Timeout;
 
   constructor(
     @Inject(PG_POOL) private readonly pg: Pool,
@@ -72,9 +74,20 @@ export class MediaProcessor implements OnModuleInit, OnModuleDestroy {
       concurrency: 2,
     });
     this.worker.on('failed', (job, err) => this.log.warn(`job ${job?.id} failed: ${err.message}`));
+    // Queue depth for /metrics: a growing "waiting" count means uploads are processed slower than they arrive.
+    this.depthTimer = setInterval(async () => {
+      try {
+        const counts = await this.queue.getJobCounts('waiting', 'active', 'delayed', 'failed');
+        for (const [state, n] of Object.entries(counts)) queueJobs.labels(QUEUE, state).set(n);
+      } catch {
+        /* metrics only */
+      }
+    }, 15_000);
+    this.depthTimer.unref();
   }
 
   async onModuleDestroy() {
+    if (this.depthTimer) clearInterval(this.depthTimer);
     await this.worker?.close();
     await this.queue?.close();
     this.conns.forEach((c) => c.disconnect());
