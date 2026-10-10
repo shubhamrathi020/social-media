@@ -6,14 +6,25 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthUser, CurrentUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ChatService } from './chat.service';
-import { CreateConversationDto, MarkReadDto, SendMessageBodyDto } from './dto';
+import { GroupsService } from './groups.service';
+import {
+  AddMembersDto,
+  CreateConversationDto,
+  MarkReadDto,
+  MuteDto,
+  SendMessageBodyDto,
+  SetRoleDto,
+  UpdateGroupDto,
+} from './dto';
 
 const NUMERIC_ID = /^\d{1,18}$/;
 
@@ -26,7 +37,10 @@ const bigintStr = (v: string | undefined, name: string) => {
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class ChatController {
-  constructor(private readonly chat: ChatService) {}
+  constructor(
+    private readonly chat: ChatService,
+    private readonly groups: GroupsService,
+  ) {}
 
   @Get('conversations')
   list(@CurrentUser() u: AuthUser) {
@@ -37,6 +51,48 @@ export class ChatController {
   create(@CurrentUser() u: AuthUser, @Body() dto: CreateConversationDto) {
     if (dto.userId) return this.chat.openDirect(u.userId, dto.userId);
     return this.chat.createGroup(u.userId, dto.title!, dto.memberIds ?? []);
+  }
+
+  // ---- group administration ----
+
+  @Patch('conversations/:id')
+  updateGroup(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateGroupDto) {
+    return this.groups.update(u.userId, id, dto);
+  }
+
+  @Post('conversations/:id/members')
+  addMembers(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: AddMembersDto) {
+    return this.groups.addMembers(u.userId, id, dto.userIds);
+  }
+
+  @Delete('conversations/:id/members/:userId')
+  removeMember(
+    @CurrentUser() u: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ) {
+    return this.groups.removeMember(u.userId, id, userId);
+  }
+
+  @Post('conversations/:id/leave')
+  @HttpCode(200)
+  leave(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.groups.removeMember(u.userId, id, u.userId);
+  }
+
+  @Patch('conversations/:id/members/:userId')
+  setRole(
+    @CurrentUser() u: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: SetRoleDto,
+  ) {
+    return this.groups.setRole(u.userId, id, userId, dto.role);
+  }
+
+  @Put('conversations/:id/mute')
+  mute(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: MuteDto) {
+    return this.groups.mute(u.userId, id, dto.mutedUntil ? new Date(dto.mutedUntil) : null);
   }
 
   @Get('conversations/:id/messages')

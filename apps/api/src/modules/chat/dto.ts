@@ -1,6 +1,8 @@
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
+  IsISO8601,
   IsIn,
   IsNotEmpty,
   IsNumberString,
@@ -98,4 +100,37 @@ export class PresenceQueryDto {
   @ArrayMaxSize(100)
   @IsUUID('all', { each: true })
   userIds!: string[];
+}
+
+export class UpdateGroupDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(60)
+  title?: string;
+
+  /** A ready media id, or null to remove the picture. */
+  @ValidateIf((_, v) => v !== undefined && v !== null)
+  @IsUUID()
+  avatarMediaId?: string | null;
+}
+
+export class AddMembersDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(255)
+  @IsUUID('all', { each: true })
+  userIds!: string[];
+}
+
+export class SetRoleDto {
+  @IsIn(['admin', 'member'])
+  role!: 'admin' | 'member';
+}
+
+export class MuteDto {
+  /** ISO timestamp, or null to unmute. */
+  @ValidateIf((_, v) => v !== null)
+  @IsISO8601()
+  mutedUntil!: string | null;
 }

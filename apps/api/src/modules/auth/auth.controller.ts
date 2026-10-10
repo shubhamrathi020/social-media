@@ -29,7 +29,12 @@ export class AuthController {
   @RateLimit(60, 60, 'otp-request')
   async request(@Body() dto: RequestOtpDto) {
     const code = await this.otp.issue(dto.phone);
-    await this.sender.send(dto.phone, code);
+    try {
+      await this.sender.send(dto.phone, code);
+    } catch (e) {
+      await this.otp.discard(dto.phone);
+      throw e;
+    }
   }
 
   @Post('otp/verify')

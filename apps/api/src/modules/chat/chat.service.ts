@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { randomUUID } from 'crypto';
 import { Pool, PoolClient } from 'pg';
 import { Events } from '../../common/events';
 import { PG_POOL } from '../../common/infra.module';
@@ -123,9 +124,11 @@ export class ChatService {
               c.last_message_id AS "lastMessageId",
               (SELECT count(*)::int FROM messages m
                 WHERE m.conversation_id = c.id AND m.id > cm.last_read_message_id
+                  AND m.created_at >= cm.joined_at AND m.type <> 'system'
                   AND m.sender_id <> $1 AND m.deleted_at IS NULL
                   AND NOT EXISTS (SELECT 1 FROM message_hidden h WHERE h.user_id = $1 AND h.message_id = m.id)
-              ) AS unread
+              ) AS unread,
+              c.avatar_media_id AS "avatarMediaId", cm.role AS "myRole", cm.muted_until AS "mutedUntil"
          FROM conversation_members cm JOIN conversations c ON c.id = cm.conversation_id
         WHERE cm.user_id = $1
         ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC
@@ -141,7 +144,9 @@ export class ChatService {
       `SELECT c.id, c.type, c.title, c.last_message_at AS "lastMessageAt", c.last_message_id AS "lastMessageId",
               (SELECT count(*)::int FROM messages m
                 WHERE m.conversation_id = c.id AND m.id > cm.last_read_message_id
-                  AND m.sender_id <> $1 AND m.deleted_at IS NULL) AS unread
+                  AND m.created_at >= cm.joined_at AND m.type <> 'system'
+                  AND m.sender_id <> $1 AND m.deleted_at IS NULL) AS unread,
+              c.avatar_media_id AS "avatarMediaId", cm.role AS "myRole", cm.muted_until AS "mutedUntil"
          FROM conversations c JOIN conversation_members cm ON cm.conversation_id = c.id AND cm.user_id = $1
         WHERE c.id = $2`,
       [me, id],
@@ -160,6 +165,7 @@ export class ChatService {
       [ids],
     );
     const withAvatars = await this.media.withAvatarUrls(members.rows);
+    const groupAvatars = await this.media.resolve(rows.map((r) => r.avatarMediaId).filter(Boolean));
     const lastIds = rows.map((r) => r.lastMessageId).filter(Boolean);
     const last = new Map<string, MessageView>();
     if (lastIds.length) {
@@ -173,6 +179,9 @@ export class ChatService {
       id: r.id,
       type: r.type,
       title: r.title,
+      avatarUrl: r.avatarMediaId ? (groupAvatars.get(r.avatarMediaId)?.thumbUrl ?? null) : null,
+      myRole: r.myRole as 'admin' | 'member',
+      mutedUntil: r.mutedUntil as string | null,
       unread: r.unread,
       lastMessageAt: r.lastMessageAt,
       lastMessage: r.lastMessageId ? (last.get(String(r.lastMessageId)) ?? null) : null,
@@ -294,7 +303,9 @@ export class ChatService {
     const r = await this.pg.query(
       `SELECT ${MSG_COLS}, ${STATUS_SQL} AS status
          FROM messages m
+         JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = $1
         WHERE m.conversation_id = $2 AND ($3::bigint IS NULL OR m.id < $3)
+          AND m.created_at >= cm.joined_at
           AND NOT EXISTS (SELECT 1 FROM message_hidden h WHERE h.user_id = $1 AND h.message_id = m.id)
         ORDER BY m.id DESC LIMIT $4`,
       [me, conversationId, before ?? null, Math.min(limit, 100)],
@@ -308,7 +319,7 @@ export class ChatService {
       `SELECT ${MSG_COLS}, ${STATUS_SQL} AS status
          FROM messages m
          JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = $1
-        WHERE m.id > $2::bigint
+        WHERE m.id > $2::bigint AND m.created_at >= cm.joined_at
           AND NOT EXISTS (SELECT 1 FROM message_hidden h WHERE h.user_id = $1 AND h.message_id = m.id)
         ORDER BY m.id ASC LIMIT $3`,
       [me, after, Math.min(limit, 500)],
@@ -384,6 +395,37 @@ export class ChatService {
       conversationId: m.conversationId,
       scope: 'everyone',
     });
+  }
+
+  /**
+   * Records a notice such as "Alice added Bob" in the conversation and pushes it to `audience`
+   * (members plus, for removals, the person who just left so their app can show it).
+   */
+  async postSystem(
+    conversationId: string,
+    actorId: string,
+    payload: Record<string, unknown>,
+    audience: string[],
+  ): Promise<MessageView> {
+    const ins = await this.pg.query(
+      `INSERT INTO messages (conversation_id, sender_id, client_msg_id, type, payload)
+       VALUES ($1, $2, $3, 'system', $4) RETURNING id`,
+      [conversationId, actorId, `sys-${randomUUID()}`, Buffer.from(JSON.stringify(payload), 'utf8')],
+    );
+    const id = ins.rows[0].id;
+    await this.pg.query('UPDATE conversations SET last_message_id = $2, last_message_at = now() WHERE id = $1', [
+      conversationId,
+      id,
+    ]);
+    const row = (await this.pg.query(`SELECT ${MSG_COLS} FROM messages m WHERE m.id = $1`, [id])).rows[0];
+    const [view] = await this.toViews(actorId, [row]);
+    this.realtime.emitToUsers(audience, 'message:new', view);
+    return view;
+  }
+
+  /** Member ids, throwing 404 when `me` is not one of them. */
+  async membersOf(conversationId: string, me: string): Promise<string[]> {
+    return this.memberIds(conversationId, me);
   }
 
   /** Other members to notify about typing. Throws if `me` is not a member. */

@@ -32,6 +32,11 @@ export class OtpService {
     return code;
   }
 
+  /** Forgets a code that could not be delivered so the user can retry immediately. */
+  async discard(phone: string): Promise<void> {
+    await this.redis.del(`otp:code:${phone}`, `otp:cool:${phone}`);
+  }
+
   async verify(phone: string, code: string): Promise<void> {
     const stored = await this.redis.get(`otp:code:${phone}`);
     if (!stored) throw new BadRequestException('Invalid or expired code');

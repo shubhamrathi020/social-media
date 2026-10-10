@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { OtpService } from './otp.service';
 import { ConsoleOtpSender, OtpSender } from './otp-sender';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { createOtpSender } from './sms-senders';
 
 @Global()
 @Module({
@@ -23,7 +24,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
     AuthService,
     OtpService,
     JwtAuthGuard,
-    { provide: OtpSender, useClass: ConsoleOtpSender },
+    { provide: OtpSender, useFactory: () => createOtpSender(process.env, () => new ConsoleOtpSender()) },
   ],
   exports: [JwtModule, JwtAuthGuard],
 })
