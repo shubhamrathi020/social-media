@@ -47,7 +47,7 @@ Working name: **Social** (placeholder). A mobile social app combining messaging 
 ### 4.4 Posts
 - Create post with 1 to 5 slides, each image or video. Hard limit enforced in API and DB.
 - Feed (friends + followed content, reverse-chronological in v1), profile grid.
-- Like (toggle), comment, reply to comment, like comment, delete own, report.
+- Like or dislike (one reaction per user; dislike totals visible to the author only), comment, reply to comment, react to comments, delete own, report.
 - Instant counters via real-time events.
 
 ### 4.5 Stories and statuses

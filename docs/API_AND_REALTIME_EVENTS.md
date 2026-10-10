@@ -130,3 +130,20 @@ Connect with `auth: { token }`. Server auto-joins `user:{id}` and the user's con
 - **Delete:** `DELETE /messages/:id?scope=me|everyone` (everyone: own messages, within 48 h).
 - **Who can start a chat** follows the target's `privacy.messages` setting (default `friends`); blocks stop all messaging.
 - **Not yet built:** group member management (add/remove/admin), mute, reply UI, push notifications for offline users.
+
+## 5. As implemented (Phase 5)
+
+- **Posts:** `POST /posts {caption?, audience, mediaIds[1..5]}`, `GET /posts/:id`, `PATCH /posts/:id`, `DELETE /posts/:id`,
+  `GET /feed?cursor=&limit=`, `GET /users/:id/posts`. Lists return `{ items, nextCursor }` (keyset on a monotonic `seq`).
+- **Reactions (like / dislike):** `PUT /posts/:id/reaction {value: 1 | -1}`, `DELETE /posts/:id/reaction`. One reaction per
+  user; switching moves the counts. Dislike totals are only returned to the post's author, viewers get `myReaction`.
+  Same shape for comments under `/comments/:id/reaction`.
+- **Comments:** `POST|GET /posts/:id/comments` (top level newest first; `?parentId=` lists replies oldest first; one level
+  of replies), `DELETE /comments/:id` (comment author or post author). Comments by users you have a block with are hidden.
+- **Visibility:** author always; friends see `public`/`friends`; `close_friends` needs the author's close-friends list;
+  non-friends see `public` unless the author's account is private; blocks hide everything. Enforced in one SQL predicate
+  shared by feed, profile, single post, comments and subscriptions. Posts you may not see answer 404.
+- **Slides:** 1-5 slides, validated in the API and by a DB check on `position`; a media item can belong to one post only.
+- **Realtime:** `post:subscribe|unsubscribe {postId}`, `post:react {postId, value|null}`; server pushes `post:counters`,
+  `comment:new`, `comment:deleted` to subscribers.
+- **Feed** is computed at query time. Fan-out-on-write and ranking are later optimisations.

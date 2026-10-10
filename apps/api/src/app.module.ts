@@ -6,6 +6,7 @@ import { ChatModule } from './modules/chat/chat.module';
 import { FriendsModule } from './modules/friends/friends.module';
 import { MediaModule } from './modules/media/media.module';
 import { HealthModule } from './modules/health/health.module';
+import { PostsModule } from './modules/posts/posts.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { UsersModule } from './modules/users/users.module';
@@ -20,6 +21,7 @@ import { UsersModule } from './modules/users/users.module';
     FriendsModule,
     RealtimeModule,
     ChatModule,
+    PostsModule,
     UsersModule,
     SettingsModule,
   ],

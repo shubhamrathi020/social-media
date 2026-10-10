@@ -81,3 +81,24 @@ export async function uploadMedia(
   await api(`/media/${ticket.id}/complete`, { method: 'POST' });
   return waitUntilProcessed(ticket.id);
 }
+
+/** Multi-select picker for post slides (images and/or videos), capped at `max`. */
+export async function pickMany(max: number): Promise<PickedFile[]> {
+  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!perm.granted) throw new Error('Photo library permission is required');
+  const res = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images', 'videos'],
+    allowsMultipleSelection: true,
+    selectionLimit: max,
+    quality: 0.9,
+  });
+  if (res.canceled) return [];
+  return res.assets.slice(0, max).map((a) => {
+    const isVideo = a.type === 'video';
+    return {
+      uri: a.uri,
+      kind: isVideo ? 'video' : 'image',
+      mime: a.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg'),
+    } as PickedFile;
+  });
+}
