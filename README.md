@@ -8,7 +8,7 @@ Design docs live in [docs/](docs). Stack: Expo (React Native) + NestJS modular m
 apps/api        NestJS API (REST under /v1, Socket.IO gateway)
 apps/mobile     Expo app (expo-router)
 packages/shared Types/constants shared by API and mobile
-infra/          docker-compose (Postgres :5433, Redis :6380, S3Mock :9090)
+infra/          docker-compose (Postgres :5433, Redis :6380, S3Mock :9090, LiveKit :7880)
 docs/           PRD, architecture, data model, API, roadmap
 ```
 
@@ -33,3 +33,9 @@ Unit tests and types:
 ```bash
 pnpm typecheck && pnpm test
 ```
+
+## More
+- [docs/RELEASE.md](docs/RELEASE.md): deployment, store submission, and what is still open before launch
+- [docs/PERFORMANCE.md](docs/PERFORMANCE.md): load-test method and results
+- CI runs types, unit tests and all end-to-end suites on every push (`.github/workflows/ci.yml`)
+- Live streaming on a phone needs a development build (`eas build --profile development`), not Expo Go

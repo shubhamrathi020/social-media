@@ -47,6 +47,41 @@ const POST_COLS = `p.id, p.seq, p.author_id AS "authorId", p.caption, p.audience
 
 export const AUTHOR_COLS = `u.id, u.username, u.display_name AS "displayName", u.avatar_media_id AS "avatarMediaId"`;
 
+/**
+ * $1 viewer, $2 cursor (seq) or null, $3 row limit. Exported so the query plan can be inspected in tests.
+ *
+ * The authors are the viewer plus their friends, so relationship checks (blocked? friends? on the author's
+ * close-friends list?) are evaluated once per author instead of once per post. A post is then visible when
+ * it is the viewer's own, public/friends, or close_friends and the viewer is on that author's list.
+ * This mirrors POST_VISIBLE_TO_VIEWER for the friends-only case; keep the two in step.
+ */
+export const FEED_SQL = `
+  WITH friend_ids AS (
+    SELECT user_b AS id FROM friendships WHERE user_a = $1
+    UNION ALL SELECT user_a FROM friendships WHERE user_b = $1
+  ),
+  authors AS (
+    SELECT $1::uuid AS id, true AS is_me, false AS on_close_list
+    UNION ALL
+    SELECT f.id, false,
+           EXISTS (SELECT 1 FROM close_friends cf WHERE cf.owner_id = f.id AND cf.friend_id = $1)
+      FROM friend_ids f
+     WHERE NOT EXISTS (SELECT 1 FROM blocks b
+                        WHERE (b.blocker_id = $1 AND b.blocked_id = f.id)
+                           OR (b.blocker_id = f.id AND b.blocked_id = $1))
+  )
+  SELECT ${POST_COLS}
+    FROM authors a
+   CROSS JOIN LATERAL (
+          SELECT * FROM posts p
+           WHERE p.author_id = a.id AND p.deleted_at IS NULL
+             AND ($2::bigint IS NULL OR p.seq < $2)
+             AND (a.is_me OR p.audience IN ('public', 'friends')
+                  OR (p.audience = 'close_friends' AND a.on_close_list))
+           ORDER BY p.seq DESC LIMIT $3
+        ) p
+   ORDER BY p.seq DESC LIMIT $3`;
+
 /** Applies a reaction change under a per-(entity,user) advisory lock and returns count deltas. */
 export async function applyReaction(
   c: PoolClient,
@@ -138,20 +173,16 @@ export class PostsService {
     return r.rows[0];
   }
 
-  /** Posts from me and my friends, newest first, filtered by each post's audience. */
+  /**
+   * Posts from me and my friends, newest first, filtered by each post's audience.
+   *
+   * Each author is probed through the (author_id, seq DESC) index for at most `limit` visible posts and the
+   * results are merged. Cost therefore depends on how many friends you have, not on how big the posts table
+   * is; scanning the global timeline and discarding strangers' posts would get slower as the app grows.
+   */
   async feed(viewer: string, cursor?: string, limit = 20): Promise<Page<PostView>> {
     const n = Math.min(limit, 50);
-    const r = await this.pg.query(
-      `SELECT ${POST_COLS} FROM posts p
-        WHERE p.deleted_at IS NULL
-          AND ($2::bigint IS NULL OR p.seq < $2)
-          AND (p.author_id = $1 OR EXISTS (
-                SELECT 1 FROM friendships f
-                 WHERE f.user_a = LEAST($1::uuid, p.author_id) AND f.user_b = GREATEST($1::uuid, p.author_id)))
-          AND ${POST_VISIBLE_TO_VIEWER}
-        ORDER BY p.seq DESC LIMIT $3`,
-      [viewer, cursor ?? null, n + 1],
-    );
+    const r = await this.pg.query(FEED_SQL, [viewer, cursor ?? null, n + 1]);
     return this.page(viewer, r.rows, n);
   }
 

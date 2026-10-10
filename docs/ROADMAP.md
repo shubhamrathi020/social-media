@@ -1,5 +1,8 @@
 # Roadmap
 
+**Status:** phases 0 to 9 are implemented and verified by the end-to-end suites in `apps/api/scripts/`. What is left
+before a public launch is listed in [RELEASE.md](RELEASE.md) (section 5).
+
 Each phase ends with something demoable on a real phone. Estimates assume one developer working with Claude; scale accordingly.
 
 | Phase | Scope | Rough size |

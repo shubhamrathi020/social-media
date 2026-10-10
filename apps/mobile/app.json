@@ -26,14 +26,16 @@
         "NSCameraUsageDescription": "Used to broadcast live video to your friends",
         "NSMicrophoneUsageDescription": "Used to broadcast live audio to your friends",
         "NSPhotoLibraryUsageDescription": "Used to choose photos and videos to share"
-      }
+      },
+      "bundleIdentifier": "com.example.social"
     },
     "android": {
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
         "MODIFY_AUDIO_SETTINGS"
-      ]
+      ],
+      "package": "com.example.social"
     }
   }
 }

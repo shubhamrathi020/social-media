@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-const B = 'http://localhost:3000/v1';
+const B = process.env.API_URL ?? 'http://localhost:3000/v1';
 const CODE = '123456';
 let failures = 0;
 const check = (name, ok, extra = '') => {

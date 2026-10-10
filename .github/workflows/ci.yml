@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Types, unit tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @social/shared build
+      - run: pnpm --filter @social/api typecheck
+      - run: pnpm --filter @social/mobile typecheck
+      - run: pnpm --filter @social/api test
+      - run: pnpm --filter @social/api build
+
+  e2e:
+    name: End-to-end (API + real Postgres, Redis, S3, LiveKit)
+    runs-on: ubuntu-latest
+    needs: checks
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: social
+          POSTGRES_PASSWORD: social
+          POSTGRES_DB: social
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U social" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6380:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-retries 10
+      s3:
+        image: adobe/s3mock:latest
+        env:
+          COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: social-media
+        ports: ['9090:9090']
+    env:
+      PORT: 3000
+      DATABASE_URL: postgresql://social:social@localhost:5433/social
+      REDIS_URL: redis://localhost:6380
+      JWT_ACCESS_SECRET: ci-secret-ci-secret-ci-secret-ci-secret
+      S3_ENDPOINT: http://localhost:9090
+      S3_ACCESS_KEY: test
+      S3_SECRET_KEY: test
+      S3_BUCKET: social-media
+      LIVEKIT_URL: ws://localhost:7880
+      LIVEKIT_HTTP_URL: http://localhost:7880
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: secret
+      OTP_DEV_CODE: '123456'
+      PUSH_MODE: log
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @social/shared build
+      - run: pnpm --filter @social/api build
+
+      - name: Start LiveKit (dev mode keys are devkey / secret)
+        run: |
+          docker run -d --name livekit --network host livekit/livekit-server:latest \
+            --dev --bind 0.0.0.0 --node-ip 127.0.0.1
+
+      - name: Migrate and start the API
+        working-directory: apps/api
+        run: |
+          npx node-pg-migrate up -m migrations --migration-file-language sql
+          nohup node dist/main.js > api.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf localhost:3000/v1/health && break; sleep 1; done
+          curl -sf localhost:3000/v1/health
+
+      - name: Run end-to-end suites
+        working-directory: apps/api
+        run: |
+          set -e
+          for suite in friends media chat posts stories live notifications; do
+            echo "::group::smoke-$suite"
+            node scripts/smoke-$suite.mjs
+            echo "::endgroup::"
+          done
+
+      - name: API log on failure
+        if: failure()
+        run: tail -n 200 apps/api/api.log
