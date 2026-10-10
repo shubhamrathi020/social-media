@@ -2,6 +2,7 @@ import { ConflictException, Inject, Injectable, NotFoundException } from '@nestj
 import { Pool } from 'pg';
 import { PG_POOL } from '../../common/infra.module';
 import { FriendsService } from '../friends/friends.service';
+import { MediaService } from '../media/media.service';
 import { UpdateProfileDto } from './dto';
 
 const PROFILE_COLS = `id, username, display_name AS "displayName", bio,
@@ -12,6 +13,7 @@ export class UsersService {
   constructor(
     @Inject(PG_POOL) private readonly pg: Pool,
     private readonly friends: FriendsService,
+    private readonly media: MediaService,
   ) {}
 
   async getMe(userId: string) {
@@ -20,7 +22,7 @@ export class UsersService {
       [userId],
     );
     if (!r.rows[0]) throw new NotFoundException();
-    return r.rows[0];
+    return (await this.media.withAvatarUrls([r.rows[0]]))[0];
   }
 
   async getPublic(id: string, requesterId: string) {
@@ -29,12 +31,13 @@ export class UsersService {
       [id],
     );
     if (!r.rows[0]) throw new NotFoundException();
-    if (id === requesterId) return { ...r.rows[0], relationship: 'self' };
+    const [row] = await this.media.withAvatarUrls([r.rows[0]]);
+    if (id === requesterId) return { ...row, relationship: 'self' };
 
     const rel = (await this.friends.relationships(requesterId, [id])).get(id)!;
     // A user who blocked you looks like a user that does not exist.
     if (rel === 'blocked_by') throw new NotFoundException();
-    return { ...r.rows[0], relationship: rel };
+    return { ...row, relationship: rel };
   }
 
   async updateMe(userId: string, dto: UpdateProfileDto) {
@@ -43,7 +46,10 @@ export class UsersService {
       displayName: 'display_name',
       bio: 'bio',
       isPrivate: 'is_private',
+      avatarMediaId: 'avatar_media_id',
     };
+    if (dto.avatarMediaId) await this.media.assertUsable(userId, dto.avatarMediaId, ['avatar']);
+
     const sets: string[] = [];
     const values: unknown[] = [userId];
     for (const [key, col] of Object.entries(map)) {
@@ -81,7 +87,8 @@ export class UsersService {
       [term, requesterId, Math.min(limit, 50)],
     );
     const rels = await this.friends.relationships(requesterId, r.rows.map((row) => row.id));
-    return r.rows
+    const withAvatars = await this.media.withAvatarUrls(r.rows);
+    return withAvatars
       .map((row) => ({ ...row, relationship: rels.get(row.id)! }))
       .filter((row) => row.relationship !== 'blocked_by');
   }

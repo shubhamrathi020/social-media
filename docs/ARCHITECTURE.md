@@ -66,6 +66,12 @@ in-process event bus (`friend.accepted`, `post.liked`, ...), which can become Re
 4. Media becomes `ready`; only then can a post/story reference it.
 5. Delivery through CDN; private content via signed URLs.
 
+**Implementation note (Phase 3):** the worker runs in-process on BullMQ. Images are re-encoded (EXIF/GPS stripped,
+max 2048px) with a 400px WebP thumbnail; videos are transcoded to H.264/AAC MP4 (max 1280px, `+faststart`) with a
+JPEG poster, max 300 s. Content type is verified from the bytes, not the client's claim. Adaptive HLS and a CDN are
+deferred until playback data shows they are needed. Signed GET URLs last 1 hour, so clients must refetch rather than
+persist them. Not yet built: cleanup of abandoned `uploading` rows and deleted-media object removal.
+
 ## 6. Live streaming
 - Server mints LiveKit tokens (publisher for host, subscriber for viewers).
 - LiveKit webhooks update stream state (started/ended, viewer count).

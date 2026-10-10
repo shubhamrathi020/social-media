@@ -11,6 +11,7 @@ import {
 import Redis from 'ioredis';
 import { Pool, PoolClient } from 'pg';
 import { PG_POOL, REDIS } from '../../common/infra.module';
+import { MediaService } from '../media/media.service';
 
 export type Relationship =
   | 'none'
@@ -33,6 +34,7 @@ export class FriendsService {
   constructor(
     @Inject(PG_POOL) private readonly pg: Pool,
     @Inject(REDIS) private readonly redis: Redis,
+    private readonly media: MediaService,
   ) {}
 
   // ---- relationship lookup (also used by the users module) -----------------------------------
@@ -160,7 +162,8 @@ export class FriendsService {
         ORDER BY fr.created_at DESC LIMIT 100`,
       [me],
     );
-    return r.rows.map(({ requestId, createdAt, ...user }) => ({ id: requestId, createdAt, user }));
+    const users = await this.media.withAvatarUrls(r.rows);
+    return users.map(({ requestId, createdAt, ...user }) => ({ id: requestId, createdAt, user }));
   }
 
   // ---- friends & close friends ----------------------------------------------------------------
@@ -177,7 +180,7 @@ export class FriendsService {
         ORDER BY f.created_at DESC LIMIT $2`,
       [me, Math.min(limit, 100), before ?? null],
     );
-    return r.rows;
+    return this.media.withAvatarUrls(r.rows);
   }
 
   async unfriend(me: string, otherId: string) {
@@ -207,7 +210,7 @@ export class FriendsService {
         WHERE cf.owner_id = $1 AND u.deleted_at IS NULL ORDER BY cf.created_at DESC`,
       [me],
     );
-    return r.rows;
+    return this.media.withAvatarUrls(r.rows);
   }
 
   async addCloseFriend(me: string, friendId: string) {
@@ -254,7 +257,7 @@ export class FriendsService {
         WHERE b.blocker_id = $1 ORDER BY b.created_at DESC`,
       [me],
     );
-    return r.rows;
+    return this.media.withAvatarUrls(r.rows);
   }
 
   // ---- contacts & suggestions -----------------------------------------------------------------
@@ -320,7 +323,7 @@ export class FriendsService {
         LIMIT $2`,
       [me, Math.min(limit, 50)],
     );
-    return r.rows;
+    return this.media.withAvatarUrls(r.rows);
   }
 
   async dismissSuggestion(me: string, userId: string) {

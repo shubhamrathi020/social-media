@@ -9,6 +9,8 @@ export interface Me {
   displayName: string | null;
   bio: string;
   isPrivate: boolean;
+  avatarMediaId: string | null;
+  avatarUrl: string | null;
 }
 
 interface AuthState {
@@ -17,7 +19,7 @@ interface AuthState {
   bootstrap: () => Promise<void>;
   requestOtp: (phone: string) => Promise<void>;
   verifyOtp: (phone: string, code: string) => Promise<void>;
-  updateProfile: (patch: Partial<Pick<Me, 'username' | 'displayName' | 'bio' | 'isPrivate'>>) => Promise<void>;
+  updateProfile: (patch: Partial<Pick<Me, 'username' | 'displayName' | 'bio' | 'isPrivate' | 'avatarMediaId'>>) => Promise<void>;
   logout: () => Promise<void>;
 }
 

@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -22,4 +22,9 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsBoolean()
   isPrivate?: boolean;
+
+  /** Id of a ready 'avatar' media object, or null to remove the avatar. */
+  @ValidateIf((_, v) => v !== undefined && v !== null)
+  @IsUUID()
+  avatarMediaId?: string | null;
 }

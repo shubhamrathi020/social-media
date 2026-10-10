@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Button, Text, TextInput, View } from 'react-native';
+import { Avatar } from '../../src/components/Avatar';
+import { pickFromLibrary, uploadMedia } from '../../src/lib/media';
 import { useAuth } from '../../src/state/auth';
 
 export default function Home() {
@@ -10,6 +12,22 @@ export default function Home() {
   const [username, setUsername] = useState(me?.username ?? '');
   const [displayName, setDisplayName] = useState(me?.displayName ?? '');
   const [message, setMessage] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+
+  async function changePhoto() {
+    setMessage(null);
+    try {
+      const file = await pickFromLibrary(['image']);
+      if (!file) return;
+      setProgress(0);
+      const media = await uploadMedia(file, 'avatar', setProgress);
+      await updateProfile({ avatarMediaId: media.id });
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'Could not update photo');
+    } finally {
+      setProgress(null);
+    }
+  }
 
   async function save() {
     setMessage(null);
@@ -23,6 +41,14 @@ export default function Home() {
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 12 }}>
+      <View style={{ alignItems: 'center', gap: 8 }}>
+        <Avatar url={me?.avatarUrl} name={me?.displayName ?? me?.username} size={96} />
+        <Button
+          title={progress === null ? 'Change photo' : `Uploading ${Math.round(progress * 100)}%`}
+          onPress={changePhoto}
+          disabled={progress !== null}
+        />
+      </View>
       <Text style={{ fontSize: 24, fontWeight: '600' }}>Your profile</Text>
       <Text>{me?.phone}</Text>
       <TextInput

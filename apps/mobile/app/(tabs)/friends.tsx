@@ -1,5 +1,6 @@
 import { Alert, Button, SectionList, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Avatar } from '../../src/components/Avatar';
 import { Friend, FriendRequest, Suggestion, friendsApi, nameOf } from '../../src/lib/friends';
 
 type Item =
@@ -40,7 +41,7 @@ export default function FriendsScreen() {
         if (item.kind === 'request') {
           const r = item.data;
           return (
-            <Row title={nameOf(r.user)} subtitle="wants to be friends">
+            <Row avatar={r.user.avatarUrl} title={nameOf(r.user)} subtitle="wants to be friends">
               <Button title="Accept" onPress={() => run.mutate(() => friendsApi.accept(r.id))} />
               <Button title="Decline" color="gray" onPress={() => run.mutate(() => friendsApi.decline(r.id))} />
             </Row>
@@ -50,6 +51,7 @@ export default function FriendsScreen() {
           const s = item.data;
           return (
             <Row
+              avatar={s.avatarUrl}
               title={nameOf(s)}
               subtitle={s.reason === 'mutual' ? `${s.mutualCount} mutual friends` : 'In your contacts'}
             >
@@ -60,7 +62,7 @@ export default function FriendsScreen() {
         }
         const f = item.data;
         return (
-          <Row title={`${f.isCloseFriend ? '★ ' : ''}${nameOf(f)}`} subtitle={f.username ? `@${f.username}` : ''}>
+          <Row avatar={f.avatarUrl} title={`${f.isCloseFriend ? '★ ' : ''}${nameOf(f)}`} subtitle={f.username ? `@${f.username}` : ''}>
             <Button
               title={f.isCloseFriend ? 'Remove close' : 'Close friend'}
               onPress={() =>
@@ -86,11 +88,26 @@ export default function FriendsScreen() {
   );
 }
 
-function Row({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Row({
+  title,
+  subtitle,
+  avatar,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  avatar?: string | null;
+  children: React.ReactNode;
+}) {
   return (
     <View style={{ padding: 12, gap: 6, borderBottomWidth: 1, borderColor: '#ddd' }}>
-      <Text style={{ fontSize: 16, fontWeight: '600' }}>{title}</Text>
-      {!!subtitle && <Text style={{ color: 'gray' }}>{subtitle}</Text>}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <Avatar url={avatar} name={title} />
+        <View>
+          <Text style={{ fontSize: 16, fontWeight: '600' }}>{title}</Text>
+          {!!subtitle && <Text style={{ color: 'gray' }}>{subtitle}</Text>}
+        </View>
+      </View>
       <View style={{ flexDirection: 'row', gap: 8 }}>{children}</View>
     </View>
   );

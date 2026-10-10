@@ -14,6 +14,7 @@ export interface UserSummary {
   username: string | null;
   displayName: string | null;
   avatarMediaId: string | null;
+  avatarUrl: string | null;
 }
 export interface Friend extends UserSummary {
   friendsSince: string;

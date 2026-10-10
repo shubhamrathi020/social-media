@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { InfraModule } from './common/infra.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { FriendsModule } from './modules/friends/friends.module';
+import { MediaModule } from './modules/media/media.module';
 import { HealthModule } from './modules/health/health.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { UsersModule } from './modules/users/users.module';
@@ -12,6 +13,7 @@ import { UsersModule } from './modules/users/users.module';
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', '../../.env'] }),
     InfraModule,
     AuthModule,
+    MediaModule,
     HealthModule,
     FriendsModule,
     UsersModule,

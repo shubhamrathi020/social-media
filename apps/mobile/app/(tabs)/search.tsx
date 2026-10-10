@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, FlatList, Text, TextInput, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Avatar } from '../../src/components/Avatar';
 import { Relationship, SearchResult, friendsApi, nameOf } from '../../src/lib/friends';
 
 function useDebounced<T>(value: T, ms = 300) {
@@ -56,6 +57,7 @@ export default function SearchScreen() {
         }
         renderItem={({ item }) => (
           <View style={{ paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Avatar url={item.avatarUrl} name={nameOf(item)} />
             <View style={{ flex: 1 }}>
               <Text style={{ fontWeight: '600' }}>{nameOf(item)}</Text>
               {!!item.username && <Text style={{ color: 'gray' }}>@{item.username}</Text>}
