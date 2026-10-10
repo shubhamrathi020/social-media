@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto';
-
 const B = process.env.API_URL ?? 'http://localhost:3000/v1';
 const CODE = '123456';
 let failures = 0;
@@ -58,9 +56,8 @@ check('suggest carol via mutual', r.data?.some((s) => s.id === C.id && s.mutualC
 check('does not suggest existing friend', !r.data?.some((s) => s.id === Bb.id));
 
 // contact sync: A uploads hash of D's phone -> D suggested as contact
-const hash = createHash('sha256').update(D.phone).digest('hex');
-r = await call('POST', '/contacts/sync', A.token, { hashes: [hash] });
-check('contacts matched 1', r.data?.matched === 1, JSON.stringify(r.data));
+r = await call('POST', '/contacts/sync', A.token, { phones: [D.phone, 'not-a-number', '+1'] });
+check('contacts matched 1, invalid numbers ignored', r.data?.matched === 1 && r.data.ignored === 2, JSON.stringify(r.data));
 r = await call('GET', '/friends/suggestions', A.token);
 check('suggest dave via contact', r.data?.some((s) => s.id === D.id && s.reason === 'contact'));
 r = await call('POST', `/friends/suggestions/${D.id}/dismiss`, A.token);

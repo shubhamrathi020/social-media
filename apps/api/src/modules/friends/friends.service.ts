@@ -6,12 +6,15 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
+  OnApplicationBootstrap,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import Redis from 'ioredis';
 import { Pool, PoolClient } from 'pg';
 import { Events } from '../../common/events';
+import { E164, phoneHmac } from '../../common/phone-hmac';
 import { PG_POOL, REDIS } from '../../common/infra.module';
 import { MediaService } from '../media/media.service';
 
@@ -32,7 +35,9 @@ export const orderPair = (a: string, b: string): [string, string] => (a < b ? [a
 const PROFILE = `u.id, u.username, u.display_name AS "displayName", u.avatar_media_id AS "avatarMediaId"`;
 
 @Injectable()
-export class FriendsService {
+export class FriendsService implements OnApplicationBootstrap {
+  private readonly log = new Logger(FriendsService.name);
+
   constructor(
     @Inject(PG_POOL) private readonly pg: Pool,
     @Inject(REDIS) private readonly redis: Redis,
@@ -283,24 +288,49 @@ export class FriendsService {
 
   // ---- contacts & suggestions -----------------------------------------------------------------
 
-  /** Replaces the user's uploaded contact set. Hashes are sha256 hex of E.164 numbers. */
-  async syncContacts(me: string, hashes: string[]) {
-    const unique = [...new Set(hashes.map((h) => h.toLowerCase()))].slice(0, MAX_CONTACT_HASHES);
+  /**
+   * Gives accounts created before keyed hashes existed (or after a pepper rotation) a phone_hmac,
+   * in the background so start-up is not delayed.
+   */
+  onApplicationBootstrap() {
+    void (async () => {
+      let total = 0;
+      for (;;) {
+        const r = await this.pg.query(
+          `SELECT id, phone FROM users WHERE phone_hmac IS NULL AND deleted_at IS NULL AND phone LIKE '+%' LIMIT 500`,
+        );
+        if (r.rowCount === 0) break;
+        for (const row of r.rows) {
+          await this.pg.query('UPDATE users SET phone_hmac = $2 WHERE id = $1', [row.id, phoneHmac(row.phone)]);
+        }
+        total += r.rowCount ?? 0;
+      }
+      if (total) this.log.log(`computed contact hashes for ${total} accounts`);
+    })().catch((e) => this.log.warn(`contact hash backfill failed: ${(e as Error).message}`));
+  }
+
+  /**
+   * Replaces the user's uploaded contact set. Numbers arrive over TLS, are normalised to E.164 by the app,
+   * turned into keyed hashes here and discarded; only the hashes are stored.
+   */
+  async syncContacts(me: string, phones: string[]) {
+    const valid = [...new Set(phones.map((p) => p.trim()).filter((p) => E164.test(p)))].slice(0, MAX_CONTACT_HASHES);
+    const hashes = valid.map((p) => phoneHmac(p));
     await this.tx(async (c) => {
       await c.query('DELETE FROM contact_hashes WHERE user_id = $1', [me]);
-      if (unique.length) {
+      if (hashes.length) {
         await c.query(
           'INSERT INTO contact_hashes (user_id, hash) SELECT $1, unnest($2::text[]) ON CONFLICT DO NOTHING',
-          [me, unique],
+          [me, hashes],
         );
       }
     });
     const m = await this.pg.query(
-      `SELECT count(*)::int AS n FROM contact_hashes c JOIN users u ON u.phone_hash = c.hash
+      `SELECT count(*)::int AS n FROM contact_hashes c JOIN users u ON u.phone_hmac = c.hash
         WHERE c.user_id = $1 AND u.id <> $1 AND u.deleted_at IS NULL`,
       [me],
     );
-    return { uploaded: unique.length, matched: m.rows[0].n };
+    return { uploaded: hashes.length, ignored: phones.length - valid.length, matched: m.rows[0].n };
   }
 
   async deleteContacts(me: string) {
@@ -322,7 +352,7 @@ export class FriendsService {
        cand AS (
          SELECT candidate, count(*)::int AS mutual, false AS is_contact FROM fof GROUP BY candidate
          UNION ALL
-         SELECT u.id, 0, true FROM contact_hashes c JOIN users u ON u.phone_hash = c.hash
+         SELECT u.id, 0, true FROM contact_hashes c JOIN users u ON u.phone_hmac = c.hash
           WHERE c.user_id = $1
        ),
        agg AS (

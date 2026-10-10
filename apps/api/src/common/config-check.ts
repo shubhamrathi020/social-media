@@ -16,6 +16,9 @@ export function assertSafeConfig(env: NodeJS.ProcessEnv) {
     if (PLACEHOLDERS.has(secret)) problems.push('JWT_ACCESS_SECRET is still the example placeholder');
     if (PLACEHOLDERS.has(env.LIVEKIT_API_SECRET ?? '')) problems.push('LIVEKIT_API_SECRET is still the dev default');
     if (env.OTP_DEV_CODE) problems.push('OTP_DEV_CODE must not be set in production');
+    if (!env.CONTACT_PEPPER || env.CONTACT_PEPPER.length < 32) {
+      problems.push('CONTACT_PEPPER must be set (32+ random characters) in production');
+    }
     if ((env.SMS_PROVIDER ?? 'console') === 'console') {
       problems.push('SMS_PROVIDER must be twilio, smsgate or http in production (console only logs the code)');
     }

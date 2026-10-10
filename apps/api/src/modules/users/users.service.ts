@@ -92,27 +92,4 @@ export class UsersService {
       .map((row) => ({ ...row, relationship: rels.get(row.id)! }))
       .filter((row) => row.relationship !== 'blocked_by');
   }
-
-  /** Soft-deletes the account and revokes every session. Data purge is a scheduled job later. */
-  async deleteMe(userId: string) {
-    const client = await this.pg.connect();
-    try {
-      await client.query('BEGIN');
-      await client.query(
-        `UPDATE users SET deleted_at = now(), username = NULL, display_name = NULL, bio = '',
-                avatar_media_id = NULL WHERE id = $1`,
-        [userId],
-      );
-      await client.query(
-        'UPDATE sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL',
-        [userId],
-      );
-      await client.query('COMMIT');
-    } catch (e) {
-      await client.query('ROLLBACK').catch(() => undefined);
-      throw e;
-    } finally {
-      client.release();
-    }
-  }
 }

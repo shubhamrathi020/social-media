@@ -1,9 +1,7 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
-  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -27,12 +25,6 @@ export class UsersController {
   @Patch('me')
   update(@CurrentUser() u: AuthUser, @Body() dto: UpdateProfileDto) {
     return this.users.updateMe(u.userId, dto);
-  }
-
-  @Delete('me')
-  @HttpCode(204)
-  async remove(@CurrentUser() u: AuthUser) {
-    await this.users.deleteMe(u.userId);
   }
 
   // Declared before ':id' so "search" is not parsed as an id.

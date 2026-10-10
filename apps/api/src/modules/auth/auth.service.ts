@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'crypto';
 import { Pool, PoolClient } from 'pg';
 import { PG_POOL } from '../../common/infra.module';
+import { phoneHmac } from '../../common/phone-hmac';
 import { DeviceDto } from './dto';
 
 const REFRESH_TTL_DAYS = 60;
@@ -32,10 +33,10 @@ export class AuthService {
       if (found.rowCount === 0) {
         // ON CONFLICT covers two first-logins for the same phone racing each other.
         const ins = await client.query(
-          `INSERT INTO users (phone) VALUES ($1)
+          `INSERT INTO users (phone, phone_hmac) VALUES ($1, $2)
            ON CONFLICT (phone) DO UPDATE SET phone = EXCLUDED.phone
            RETURNING id, (xmax = 0) AS inserted`,
-          [phone],
+          [phone, phoneHmac(phone)],
         );
         userId = ins.rows[0].id;
         isNewUser = ins.rows[0].inserted;

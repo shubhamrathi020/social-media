@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { InfraModule } from './common/infra.module';
 import { RateLimitGuard } from './common/rate-limit';
+import { AccountModule } from './modules/account/account.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { FriendsModule } from './modules/friends/friends.module';
@@ -36,6 +37,7 @@ import { UsersModule } from './modules/users/users.module';
     MaintenanceModule,
     NotificationsModule,
     ReportsModule,
+    AccountModule,
     UsersModule,
     SettingsModule,
   ],

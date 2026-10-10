@@ -68,7 +68,7 @@ export class FriendsController {
   @Post('contacts/sync')
   @HttpCode(200)
   sync(@CurrentUser() u: AuthUser, @Body() dto: SyncContactsDto) {
-    return this.friends.syncContacts(u.userId, dto.hashes);
+    return this.friends.syncContacts(u.userId, dto.phones);
   }
 
   @Delete('contacts')

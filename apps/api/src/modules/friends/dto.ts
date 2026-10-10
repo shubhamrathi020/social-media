@@ -1,4 +1,4 @@
-import { ArrayMaxSize, IsArray, IsUUID, Matches } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsString, IsUUID, MaxLength } from 'class-validator';
 
 export class SendRequestDto {
   @IsUUID()
@@ -6,8 +6,10 @@ export class SendRequestDto {
 }
 
 export class SyncContactsDto {
+  /** Phone numbers from the address book in E.164 form. They are hashed with a server key and never stored. */
   @IsArray()
   @ArrayMaxSize(5000)
-  @Matches(/^[0-9a-fA-F]{64}$/, { each: true, message: 'each hash must be a sha256 hex string' })
-  hashes!: string[];
+  @IsString({ each: true })
+  @MaxLength(20, { each: true })
+  phones!: string[];
 }

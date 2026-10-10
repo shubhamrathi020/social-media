@@ -4,6 +4,7 @@ import { Queue, Worker } from 'bullmq';
 import Redis from 'ioredis';
 import { Pool } from 'pg';
 import { PG_POOL } from '../../common/infra.module';
+import { AccountService } from '../account/account.service';
 import { MediaService } from '../media/media.service';
 
 const QUEUE = 'maintenance';
@@ -24,6 +25,7 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
     @Inject(PG_POOL) private readonly pg: Pool,
     private readonly media: MediaService,
     private readonly cfg: ConfigService,
+    private readonly accounts: AccountService,
   ) {}
 
   async onModuleInit() {
@@ -51,10 +53,12 @@ export class MaintenanceService implements OnModuleInit, OnModuleDestroy {
     const stories = await this.purgeStories();
     const posts = await this.purgePosts();
     const uploads = await this.purgeAbandonedUploads();
-    if (stories + posts + uploads > 0) {
-      this.log.log(`purged stories=${stories} posts=${posts} abandonedUploads=${uploads}`);
+    // Deleted accounts are anonymised at once; their rows and files are erased after this many days.
+    const accounts = await this.accounts.purgeDue(Number(this.cfg.get('ACCOUNT_PURGE_DAYS') ?? 30));
+    if (stories + posts + uploads + accounts > 0) {
+      this.log.log(`purged stories=${stories} posts=${posts} abandonedUploads=${uploads} accounts=${accounts}`);
     }
-    return { stories, posts, uploads };
+    return { stories, posts, uploads, accounts };
   }
 
   /** Stories and statuses one hour past expiry (or deleted by their author). */
