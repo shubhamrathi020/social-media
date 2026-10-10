@@ -1,4 +1,4 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'crypto';
 import { Pool, PoolClient } from 'pg';
@@ -29,7 +29,7 @@ export class AuthService {
       let userId: string;
       let isNewUser = false;
 
-      const found = await client.query('SELECT id, deleted_at FROM users WHERE phone = $1', [phone]);
+      const found = await client.query('SELECT id, deleted_at, suspended_at FROM users WHERE phone = $1', [phone]);
       if (found.rowCount === 0) {
         // ON CONFLICT covers two first-logins for the same phone racing each other.
         const ins = await client.query(
@@ -46,6 +46,7 @@ export class AuthService {
         );
       } else {
         if (found.rows[0].deleted_at) throw new UnauthorizedException('Account deleted');
+        if (found.rows[0].suspended_at) throw new ForbiddenException('This account is suspended');
         userId = found.rows[0].id;
       }
 
@@ -88,12 +89,13 @@ export class AuthService {
     try {
       await client.query('BEGIN');
       const r = await client.query(
-        `SELECT id, user_id, refresh_token_hash, prev_refresh_token_hash, expires_at, revoked_at
-           FROM sessions WHERE id = $1 FOR UPDATE`,
+        `SELECT s.id, s.user_id, s.refresh_token_hash, s.prev_refresh_token_hash, s.expires_at, s.revoked_at,
+                u.suspended_at, u.deleted_at
+           FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = $1 FOR UPDATE OF s`,
         [sessionId],
       );
       const s = r.rows[0];
-      if (!s || s.revoked_at || new Date(s.expires_at) < new Date()) {
+      if (!s || s.revoked_at || s.suspended_at || s.deleted_at || new Date(s.expires_at) < new Date()) {
         throw new UnauthorizedException();
       }
       const presented = sha256(secret);

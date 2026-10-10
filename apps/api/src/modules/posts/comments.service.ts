@@ -110,12 +110,13 @@ export class CommentsService {
       replies
         ? `SELECT ${COMMENT_COLS} FROM comments c
             WHERE c.post_id = $2 AND c.parent_id = $3 AND ($4::bigint IS NULL OR c.seq > $4)
-              AND c.deleted_at IS NULL AND ${NOT_BLOCKED}
+              AND c.deleted_at IS NULL AND (c.hidden_at IS NULL OR c.user_id = $1) AND ${NOT_BLOCKED}
             ORDER BY c.seq ASC LIMIT $5`
         : `SELECT ${COMMENT_COLS} FROM comments c
             WHERE c.post_id = $2 AND c.parent_id IS NULL AND $3::uuid IS NULL
               AND ($4::bigint IS NULL OR c.seq < $4)
-              AND (c.deleted_at IS NULL OR c.reply_count > 0) AND ${NOT_BLOCKED}
+              AND (c.deleted_at IS NULL OR c.reply_count > 0) AND (c.hidden_at IS NULL OR c.user_id = $1)
+              AND ${NOT_BLOCKED}
             ORDER BY c.seq DESC LIMIT $5`,
       [viewer, postId, opts.parentId ?? null, opts.cursor ?? null, n + 1],
     );

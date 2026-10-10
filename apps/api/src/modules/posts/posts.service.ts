@@ -11,6 +11,8 @@ import { Pool, PoolClient } from 'pg';
 import { Events } from '../../common/events';
 import { PG_POOL } from '../../common/infra.module';
 import { MediaService, MediaView } from '../media/media.service';
+import { ModerationService } from '../moderation/moderation.service';
+import { scanPolicy } from '../moderation/content-scanner';
 import { RealtimeService } from '../realtime/realtime.service';
 import { CreatePostDto, UpdatePostDto } from './dto';
 import { POST_VISIBLE_TO_VIEWER } from './visibility';
@@ -76,6 +78,7 @@ export const FEED_SQL = `
           SELECT * FROM posts p
            WHERE p.author_id = a.id AND p.deleted_at IS NULL
              AND ($2::bigint IS NULL OR p.seq < $2)
+             AND (a.is_me OR p.hidden_at IS NULL)
              AND (a.is_me OR p.audience IN ('public', 'friends')
                   OR (p.audience = 'close_friends' AND a.on_close_list))
            ORDER BY p.seq DESC LIMIT $3
@@ -121,6 +124,7 @@ export class PostsService {
     private readonly media: MediaService,
     private readonly realtime: RealtimeService,
     private readonly events: EventEmitter2,
+    private readonly moderation: ModerationService,
   ) {}
 
   // ---- create / read -------------------------------------------------------------------------
@@ -142,6 +146,7 @@ export class PostsService {
         [id, dto.mediaIds],
       );
       await client.query('COMMIT');
+      await this.holdIfFlagged(id, dto.mediaIds);
       return this.get(me, id);
     } catch (e: any) {
       await client.query('ROLLBACK').catch(() => undefined);
@@ -149,6 +154,16 @@ export class PostsService {
       throw e;
     } finally {
       client.release();
+    }
+  }
+
+  /** Posts whose images the scanner found borderline are hidden and queued for a moderator. */
+  private async holdIfFlagged(postId: string, mediaIds: string[]) {
+    const r = await this.pg.query('SELECT max(nsfw_score) AS s FROM media WHERE id = ANY($1::uuid[])', [mediaIds]);
+    const score: number | null = r.rows[0]?.s ?? null;
+    if (score !== null && score >= scanPolicy().review) {
+      await this.moderation.hide('post', postId, `image scan score ${score.toFixed(2)}`);
+      await this.moderation.systemReport('post', postId, 'nudity', `automatic image scan (score ${score.toFixed(2)})`);
     }
   }
 

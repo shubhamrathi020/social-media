@@ -106,6 +106,14 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Moderation suite (API restarted with the deterministic test scanner)
+        working-directory: apps/api
+        run: |
+          pkill -f "node dist/main.js" || true
+          CONTENT_SCAN=test-colour AUTO_HIDE_REPORTS=3 nohup node dist/main.js > api.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf localhost:3000/v1/health && break; sleep 1; done
+          node scripts/smoke-moderation.mjs
+
       - name: API log on failure
         if: failure()
         run: tail -n 200 apps/api/api.log

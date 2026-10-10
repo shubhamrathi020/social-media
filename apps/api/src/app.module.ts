@@ -12,6 +12,7 @@ import { HealthModule } from './modules/health/health.module';
 import { LiveModule } from './modules/live/live.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { MediaModule } from './modules/media/media.module';
+import { ModerationModule } from './modules/moderation/moderation.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
@@ -27,6 +28,7 @@ import { UsersModule } from './modules/users/users.module';
     InfraModule,
     AuthModule,
     MediaModule,
+    ModerationModule,
     HealthModule,
     FriendsModule,
     RealtimeModule,

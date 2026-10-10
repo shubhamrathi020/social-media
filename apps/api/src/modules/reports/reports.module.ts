@@ -6,6 +6,7 @@ import { AuthUser, CurrentUser, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PostsModule } from '../posts/posts.module';
 import { PostsService } from '../posts/posts.service';
 import { RateLimit } from '../../common/rate-limit';
+import { ModerationService } from '../moderation/moderation.service';
 
 const ENTITIES = ['user', 'post', 'comment', 'story'] as const;
 const REASONS = ['spam', 'harassment', 'nudity', 'violence', 'hate', 'misinformation', 'other'] as const;
@@ -31,6 +32,7 @@ export class ReportsService {
   constructor(
     @Inject(PG_POOL) private readonly pg: Pool,
     private readonly posts: PostsService,
+    private readonly moderation: ModerationService,
   ) {}
 
   async create(me: string, dto: CreateReportDto) {
@@ -45,6 +47,12 @@ export class ReportsService {
        RETURNING id`,
       [me, dto.entityType, dto.entityId, dto.reason, dto.details?.trim() || null],
     );
+    if (r.rows[0] && dto.entityType !== 'user') {
+      const threshold = Number(process.env.AUTO_HIDE_REPORTS ?? 3);
+      if ((await this.moderation.openReporters(dto.entityType, dto.entityId)) >= threshold) {
+        await this.moderation.hide(dto.entityType, dto.entityId, `${threshold}+ people reported it`);
+      }
+    }
     return { id: r.rows[0]?.id ?? null, received: true };
   }
 

@@ -13,6 +13,7 @@ import sharp from 'sharp';
 import { PG_POOL } from '../../common/infra.module';
 import { MAX_VIDEO_SECONDS } from './media.rules';
 import { StorageService } from './storage.service';
+import { ContentScanner, decide, scanPolicy } from '../moderation/content-scanner';
 
 const QUEUE = 'media-processing';
 
@@ -24,6 +25,7 @@ interface Result {
   width: number | null;
   height: number | null;
   durationMs: number | null;
+  nsfwScore: number | null;
 }
 
 class RejectedMedia extends Error {}
@@ -54,6 +56,7 @@ export class MediaProcessor implements OnModuleInit, OnModuleDestroy {
     @Inject(PG_POOL) private readonly pg: Pool,
     private readonly storage: StorageService,
     private readonly cfg: ConfigService,
+    private readonly scanner: ContentScanner,
   ) {}
 
   onModuleInit() {
@@ -95,9 +98,9 @@ export class MediaProcessor implements OnModuleInit, OnModuleDestroy {
 
       await this.pg.query(
         `UPDATE media SET status = 'ready', storage_key = $2, thumb_key = $3, mime = $4,
-                size_bytes = $5, width = $6, height = $7, duration_ms = $8, updated_at = now()
+                size_bytes = $5, width = $6, height = $7, duration_ms = $8, nsfw_score = $9, updated_at = now()
           WHERE id = $1`,
-        [mediaId, out.storageKey, out.thumbKey, out.mime, out.size, out.width, out.height, out.durationMs],
+        [mediaId, out.storageKey, out.thumbKey, out.mime, out.size, out.width, out.height, out.durationMs, out.nsfwScore],
       );
       if (out.storageKey !== m.raw_key) await this.storage.delete(m.raw_key).catch(() => undefined);
     } catch (e) {
@@ -109,6 +112,14 @@ export class MediaProcessor implements OnModuleInit, OnModuleDestroy {
       await this.storage.delete(m.raw_key).catch(() => undefined);
       if (!(e instanceof RejectedMedia)) throw e; // genuine failures are retried; rejections are final
     }
+  }
+
+  /** Rejects clearly explicit images; returns the score so borderline content can be held for review. */
+  private async screen(image: Buffer): Promise<number | null> {
+    const result = await this.scanner.scan(image);
+    const score = result?.explicit ?? null;
+    if (decide(score, scanPolicy()) === 'reject') throw new RejectedMedia('This content is not allowed');
+    return score;
   }
 
   private async image(m: any, raw: Buffer): Promise<Result> {
@@ -129,6 +140,7 @@ export class MediaProcessor implements OnModuleInit, OnModuleDestroy {
     } catch {
       throw new RejectedMedia('File is not a valid image');
     }
+    const nsfwScore = await this.screen(main.data);
     const fmt = main.info.format;
     const mime = `image/${fmt}`;
     const base = `u/${m.owner_id}/${m.id}`;
@@ -142,6 +154,7 @@ export class MediaProcessor implements OnModuleInit, OnModuleDestroy {
       width: main.info.width,
       height: main.info.height,
       durationMs: null,
+      nsfwScore,
     };
   }
 
@@ -200,6 +213,8 @@ export class MediaProcessor implements OnModuleInit, OnModuleDestroy {
         width: ov.width,
         height: ov.height,
         durationMs: Math.round(info.duration * 1000),
+        // Only the poster frame is scanned; full-video scanning is a known gap.
+        nsfwScore: await this.screen(await readFile(poster)),
       };
     } finally {
       await rm(dir, { recursive: true, force: true });
@@ -215,6 +230,7 @@ export class MediaProcessor implements OnModuleInit, OnModuleDestroy {
       width: null,
       height: null,
       durationMs: null,
+      nsfwScore: null,
     };
   }
 }

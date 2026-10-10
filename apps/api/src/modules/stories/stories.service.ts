@@ -11,6 +11,8 @@ import { PG_POOL } from '../../common/infra.module';
 import { ChatService } from '../chat/chat.service';
 import { FriendsService } from '../friends/friends.service';
 import { MediaService, MediaView } from '../media/media.service';
+import { scanPolicy } from '../moderation/content-scanner';
+import { ModerationService } from '../moderation/moderation.service';
 import { RealtimeService } from '../realtime/realtime.service';
 
 export type StoryKind = 'story' | 'status';
@@ -45,6 +47,7 @@ const VISIBLE = `(
   s.deleted_at IS NULL AND s.expires_at > now() AND (
     s.author_id = $1
     OR (
+      s.hidden_at IS NULL AND
       NOT EXISTS (SELECT 1 FROM blocks b
                    WHERE (b.blocker_id = $1 AND b.blocked_id = s.author_id)
                       OR (b.blocker_id = s.author_id AND b.blocked_id = $1))
@@ -77,6 +80,7 @@ export class StoriesService {
     private readonly friends: FriendsService,
     private readonly chat: ChatService,
     private readonly realtime: RealtimeService,
+    private readonly moderation: ModerationService,
   ) {}
 
   async create(
@@ -102,6 +106,14 @@ export class StoriesService {
       throw e;
     }
 
+    if (input.mediaId) {
+      const r = await this.pg.query('SELECT nsfw_score AS s FROM media WHERE id = $1', [input.mediaId]);
+      const score: number | null = r.rows[0]?.s ?? null;
+      if (score !== null && score >= scanPolicy().review) {
+        await this.moderation.hide('story', id, `image scan score ${score.toFixed(2)}`);
+        await this.moderation.systemReport('story', id, 'nudity', `automatic image scan (score ${score.toFixed(2)})`);
+      }
+    }
     const [item] = await this.items(me, [{ id }]);
     void this.notifyAudience(me, id, kind, input.audience ?? 'friends');
     return item;

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moderation</title>
+  <style>
+    :root { --bg: #f7f7f8; --card: #fff; --text: #16181d; --muted: #6b7280; --line: #e5e7eb; --accent: #2563eb; --danger: #dc2626; --ok: #059669; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0f1115; --card: #181b22; --text: #e8eaf0; --muted: #9aa1ad; --line: #2a2f3a; --accent: #60a5fa; --danger: #f87171; --ok: #34d399; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--text); }
+    header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--card); position: sticky; top: 0; }
+    header h1 { font-size: 17px; margin: 0; flex: 1; }
+    main { max-width: 900px; margin: 0 auto; padding: 16px; }
+    button, input, textarea { font: inherit; color: inherit; }
+    button { border: 1px solid var(--line); background: var(--card); padding: 7px 12px; border-radius: 8px; cursor: pointer; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button.danger { color: var(--danger); border-color: var(--danger); }
+    button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+    input, textarea { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; }
+    .pill.warn { border-color: var(--danger); color: var(--danger); }
+    .thumbs img { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; margin: 6px 6px 0 0; filter: blur(14px); cursor: pointer; transition: filter .15s; }
+    .thumbs img.revealed { filter: none; }
+    .content { white-space: pre-wrap; word-break: break-word; margin: 8px 0; }
+    .hidden { display: none !important; }
+    #login { max-width: 360px; margin: 10vh auto; }
+    #error { color: var(--danger); min-height: 1.4em; }
+    table { width: 100%; border-collapse: collapse; }
+    td, th { text-align: left; padding: 6px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Moderation</h1>
+    <nav class="row hidden" id="tabs">
+      <button data-tab="open" aria-pressed="true">Open</button>
+      <button data-tab="closed" aria-pressed="false">Closed</button>
+      <button data-tab="log" aria-pressed="false">Audit log</button>
+      <button id="signout">Sign out</button>
+    </nav>
+  </header>
+
+  <section id="login" class="card">
+    <h2 style="margin-top:0">Moderator sign-in</h2>
+    <p class="muted">Use the phone number of an account marked as moderator.</p>
+    <form id="phoneForm">
+      <label for="phone">Phone number</label>
+      <input id="phone" placeholder="+919876543210" autocomplete="tel" required>
+      <p><button class="primary" type="submit">Send code</button></p>
+    </form>
+    <form id="codeForm" class="hidden">
+      <label for="code">6-digit code</label>
+      <input id="code" inputmode="numeric" maxlength="6" required>
+      <p><button class="primary" type="submit">Sign in</button></p>
+    </form>
+    <p id="error" role="alert"></p>
+  </section>
+
+  <main id="app" class="hidden">
+    <p class="muted" id="summary"></p>
+    <div id="list"></div>
+  </main>
+
+  <script src="/v1/admin/app.js"></script>
+</body>
+</html>

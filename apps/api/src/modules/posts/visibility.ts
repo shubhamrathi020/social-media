@@ -1,7 +1,8 @@
 /**
  * SQL predicate: may the viewer (bound as $1) see post `p`?
  *
- * - authors always see their own posts
+ * - authors always see their own posts (including ones hidden pending moderation)
+ * - posts hidden by moderation are invisible to everyone else
  * - blocks in either direction hide everything
  * - friends see public + friends posts, and close_friends posts if they are on the author's list
  * - everyone else sees public posts, unless the author's account is private
@@ -9,7 +10,8 @@
 export const POST_VISIBLE_TO_VIEWER = `(
   p.author_id = $1
   OR (
-    NOT EXISTS (
+    p.hidden_at IS NULL
+    AND NOT EXISTS (
       SELECT 1 FROM blocks b
        WHERE (b.blocker_id = $1 AND b.blocked_id = p.author_id)
           OR (b.blocker_id = p.author_id AND b.blocked_id = $1)
