@@ -8,5 +8,8 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }
