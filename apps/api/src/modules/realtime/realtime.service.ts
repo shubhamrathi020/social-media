@@ -20,6 +20,13 @@ export class RealtimeService {
     this.server.to([...new Set(userIds)].map(userRoom)).emit(event, payload);
   }
 
+  /** Distinct user ids with a socket in the room, across all API instances (uses the Redis adapter). */
+  async roomUserIds(room: string): Promise<string[]> {
+    if (!this.server) return [];
+    const sockets = await this.server.in(room).fetchSockets();
+    return [...new Set(sockets.map((s) => s.data.userId as string).filter(Boolean))];
+  }
+
   /** Emit to every socket subscribed to an arbitrary room (e.g. `post:{id}`). */
   emitToRoom(room: string, event: string, payload: unknown) {
     this.server?.to(room).emit(event, payload);

@@ -1,6 +1,7 @@
 import { Button, FlatList, Text, View } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { LiveNow } from '../../src/components/LiveNow';
 import { StoryTray } from '../../src/components/StoryTray';
 import { PostCard } from '../../src/components/PostCard';
 import { Post, postsApi } from '../../src/lib/posts';
@@ -25,6 +26,7 @@ export default function FeedScreen() {
       onEndReachedThreshold={0.5}
       ListHeaderComponent={
         <View>
+          <LiveNow />
           <StoryTray kind="story" />
           <View style={{ padding: 10 }}>
             <Button title="New post" onPress={() => router.push('/post/new')} />

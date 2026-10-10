@@ -163,3 +163,19 @@ Connect with `auth: { token }`. Server auto-joins `user:{id}` and the user's con
 - **Realtime:** `story:new` / `status:new {authorId, itemId}` go to exactly the people allowed to see the item.
 - **Cleanup:** a BullMQ job scheduler (every 10 min, `MAINTENANCE_INTERVAL_MS`) purges stories an hour after expiry, posts
   deleted over 7 days ago, and abandoned or rejected uploads older than 24 hours, removing the stored objects too.
+
+## 7. As implemented (Phase 7)
+
+- **Media server:** LiveKit (WebRTC SFU) from `infra/docker-compose.yml`. Our API never touches video; it mints
+  short-lived room tokens and keeps the product rules (who may watch) in one place.
+- **REST:** `POST /live {title, audience}` (host token + room), `POST /live/:id/start` (marks live and notifies the
+  audience), `POST /live/:id/end`, `POST /live/:id/join` (viewer token, viewer count, recent chat), `GET /live`
+  (friends live now), `POST /live/webhook` (LiveKit, signature verified).
+- **Tokens:** host can publish; viewers can only subscribe and receive data. A viewer token cannot publish.
+- **Audience:** `friends` or `close_friends`; blocks hide; one unfinished stream per host (DB unique index).
+- **Socket:** `live:join|leave {liveId}`, `live:chat {liveId, text}` (1/s), `live:heart {liveId}` (8/s). Server pushes
+  `live:started`, `live:ended`, `live:viewers {count}`, `live:chat`, `live:heart {total}`. Viewer count is distinct people
+  in the live room, excluding the host. Chat history (last 50) lives in Redis and is dropped when the stream ends.
+- **Robustness:** a LiveKit `room_finished` webhook ends streams whose host disappeared without calling `/end`.
+- **Mobile:** requires an Expo **development build** (`expo-dev-client`), because WebRTC is a native module. The live
+  screens load it lazily so every other screen still works in Expo Go.

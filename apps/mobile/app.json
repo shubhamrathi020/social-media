@@ -6,7 +6,34 @@
     "version": "0.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "plugins": ["expo-router"],
-    "experiments": { "typedRoutes": true }
+    "plugins": [
+      "expo-router",
+      "expo-dev-client",
+      "@livekit/react-native-expo-plugin",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to use your camera to go live",
+          "microphonePermission": "Allow $(PRODUCT_NAME) to use your microphone to go live"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to broadcast live video to your friends",
+        "NSMicrophoneUsageDescription": "Used to broadcast live audio to your friends",
+        "NSPhotoLibraryUsageDescription": "Used to choose photos and videos to share"
+      }
+    },
+    "android": {
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
+      ]
+    }
   }
 }

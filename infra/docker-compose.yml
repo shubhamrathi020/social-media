@@ -27,6 +27,26 @@ services:
       COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
     ports: ["9090:9090"]
     volumes: [s3data:/s3mockFileStore]
+  livekit:
+    # WebRTC SFU for live streaming. Ports: 7880 signalling (ws/http), 7881 rtc over tcp, 7882/udp rtc media.
+    image: livekit/livekit-server:latest
+    environment:
+      LIVEKIT_CONFIG: |
+        port: 7880
+        rtc:
+          tcp_port: 7881
+          udp_port: 7882
+          # Phones on your LAN must reach this address; set LIVEKIT_NODE_IP to your PC's LAN IP for device testing.
+          node_ip: ${LIVEKIT_NODE_IP:-127.0.0.1}
+          use_external_ip: false
+        keys:
+          devkey: devsecret-devsecret-devsecret-devsecret
+        webhook:
+          api_key: devkey
+          urls:
+            - http://host.docker.internal:3000/v1/live/webhook
+    ports: ["7880:7880", "7881:7881", "7882:7882/udp"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
 volumes:
   pgdata:
   s3data:
