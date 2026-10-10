@@ -8,7 +8,7 @@ Design docs live in [docs/](docs). Stack: Expo (React Native) + NestJS modular m
 apps/api        NestJS API (REST under /v1, Socket.IO gateway)
 apps/mobile     Expo app (expo-router)
 packages/shared Types/constants shared by API and mobile
-infra/          docker-compose (Postgres :5433, Redis :6380, MinIO :9000/:9001)
+infra/          docker-compose (Postgres :5433, Redis :6380, S3Mock :9090)
 docs/           PRD, architecture, data model, API, roadmap
 ```
 

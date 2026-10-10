@@ -19,14 +19,14 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       retries: 10
-  minio:
-    image: quay.io/minio/minio
-    command: server /data --console-address ":9001"
+  s3:
+    # S3-compatible store for local dev (MinIO's public images are no longer pullable)
+    image: adobe/s3mock:latest
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    ports: ["9000:9000", "9001:9001"]
-    volumes: [miniodata:/data]
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: social-media
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
+    ports: ["9090:9090"]
+    volumes: [s3data:/s3mockFileStore]
 volumes:
   pgdata:
-  miniodata:
+  s3data:

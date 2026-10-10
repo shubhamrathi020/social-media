@@ -1,27 +1,46 @@
-import { ActivityIndicator, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
-import { MAX_POST_SLIDES } from '@social/shared';
-import { API_URL } from '../src/lib/config';
-
-type Health = { status: string; postgres: string; redis: string };
+import { useState } from 'react';
+import { Button, Text, TextInput, View } from 'react-native';
+import { useAuth } from '../src/state/auth';
 
 export default function Home() {
-  const { data, error, isLoading } = useQuery<Health>({
-    queryKey: ['health'],
-    queryFn: async () => {
-      const res = await fetch(`${API_URL}/health`);
-      if (!res.ok) throw new Error(`API ${res.status}`);
-      return res.json();
-    },
-  });
+  const me = useAuth((s) => s.me);
+  const updateProfile = useAuth((s) => s.updateProfile);
+  const logout = useAuth((s) => s.logout);
+
+  const [username, setUsername] = useState(me?.username ?? '');
+  const [displayName, setDisplayName] = useState(me?.displayName ?? '');
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function save() {
+    setMessage(null);
+    try {
+      await updateProfile({ username: username || undefined, displayName: displayName || undefined });
+      setMessage('Saved');
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'Could not save');
+    }
+  }
 
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-      <Text style={{ fontSize: 24, fontWeight: '600' }}>Social</Text>
-      <Text>Max slides per post: {MAX_POST_SLIDES}</Text>
-      {isLoading && <ActivityIndicator />}
-      {error && <Text>API unreachable: {String(error.message)}</Text>}
-      {data && <Text>API: {data.status} · pg {data.postgres} · redis {data.redis}</Text>}
+    <View style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 12 }}>
+      <Text style={{ fontSize: 24, fontWeight: '600' }}>Your profile</Text>
+      <Text>{me?.phone}</Text>
+      <TextInput
+        placeholder="username"
+        autoCapitalize="none"
+        value={username}
+        onChangeText={setUsername}
+        style={{ borderWidth: 1, borderRadius: 8, padding: 12 }}
+      />
+      <TextInput
+        placeholder="display name"
+        value={displayName}
+        onChangeText={setDisplayName}
+        style={{ borderWidth: 1, borderRadius: 8, padding: 12 }}
+      />
+      {message && <Text>{message}</Text>}
+      <Button title="Save" onPress={save} />
+      <Button title="Log out" color="crimson" onPress={logout} />
     </View>
   );
 }

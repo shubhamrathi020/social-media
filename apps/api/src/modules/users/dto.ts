@@ -1,0 +1,25 @@
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
+
+export class UpdateProfileDto {
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.toLowerCase() : value))
+  @Matches(/^[a-z0-9_.]{3,30}$/, {
+    message: 'username must be 3-30 chars: lowercase letters, digits, "_" or "."',
+  })
+  username?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 50)
+  displayName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  bio?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isPrivate?: boolean;
+}
