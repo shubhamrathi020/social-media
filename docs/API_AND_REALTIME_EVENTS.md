@@ -147,3 +147,19 @@ Connect with `auth: { token }`. Server auto-joins `user:{id}` and the user's con
 - **Realtime:** `post:subscribe|unsubscribe {postId}`, `post:react {postId, value|null}`; server pushes `post:counters`,
   `comment:new`, `comment:deleted` to subscribers.
 - **Feed** is computed at query time. Fan-out-on-write and ranking are later optimisations.
+
+## 6. As implemented (Phase 6)
+
+- **One table, two kinds.** Stories (media required, ring on avatars) and statuses (text with colour, or media) are rows of
+  `stories` with `kind = story | status`; both live 24 hours (`expires_at`), have an audience (`friends` or
+  `close_friends`) and a viewer list.
+- **Endpoints:** `POST /stories`, `GET /stories/feed`, `POST /statuses`, `GET /statuses/feed`, `POST /stories/:id/view`,
+  `GET /stories/:id/viewers` (author only), `POST /stories/:id/reply`, `DELETE /stories/:id`.
+- **Feed shape:** items grouped by author; own group first, then groups with unseen items. Own items include `viewCount`.
+- **Replies and reactions** are sent as a DM to the author with `payload.storyId` for context.
+- **Visibility:** block either way hides; `privacy.stories` of `nobody` hides from everyone but the author, `friends`
+  (default) is friends only, `everyone` also allows non-friends unless the account is private. `close_friends` items need
+  the author's list. Expired or deleted items vanish immediately through the query predicate.
+- **Realtime:** `story:new` / `status:new {authorId, itemId}` go to exactly the people allowed to see the item.
+- **Cleanup:** a BullMQ job scheduler (every 10 min, `MAINTENANCE_INTERVAL_MS`) purges stories an hour after expiry, posts
+  deleted over 7 days ago, and abandoned or rejected uploads older than 24 hours, removing the stored objects too.

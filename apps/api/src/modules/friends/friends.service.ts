@@ -82,6 +82,11 @@ export class FriendsService {
     return r.rows.map((row) => row.id);
   }
 
+  async closeFriendIds(ownerId: string): Promise<string[]> {
+    const r = await this.pg.query('SELECT friend_id AS id FROM close_friends WHERE owner_id = $1', [ownerId]);
+    return r.rows.map((row) => row.id);
+  }
+
   async areFriends(a: string, b: string): Promise<boolean> {
     const [x, y] = orderPair(a, b);
     const r = await this.pg.query('SELECT 1 FROM friendships WHERE user_a = $1 AND user_b = $2', [x, y]);

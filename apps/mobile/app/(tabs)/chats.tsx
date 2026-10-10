@@ -1,6 +1,7 @@
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { StoryTray } from '../../src/components/StoryTray';
 import { Avatar } from '../../src/components/Avatar';
 import { useLive } from '../../src/chat/live-state';
 import { Conversation, conversationTitle, previewOf } from '../../src/chat/types';
@@ -24,6 +25,7 @@ export default function ChatsScreen() {
       keyExtractor={(c) => c.id}
       refreshing={isFetching}
       onRefresh={refetch}
+      ListHeaderComponent={<StoryTray kind="status" />}
       ListEmptyComponent={
         <Text style={{ padding: 24 }}>No chats yet. Open the Friends tab and tap Message.</Text>
       }

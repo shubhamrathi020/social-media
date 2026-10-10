@@ -121,6 +121,22 @@ export class MediaService {
     }));
   }
 
+  /** Deletes objects and rows for media nobody references any more. Callers must have removed references. */
+  async purge(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const r = await this.pg.query(
+      'SELECT id, raw_key, storage_key, thumb_key FROM media WHERE id = ANY($1::uuid[])',
+      [ids],
+    );
+    for (const row of r.rows) {
+      for (const key of [row.raw_key, row.storage_key, row.thumb_key]) {
+        if (key && key !== 'pending') await this.storage.delete(key).catch(() => undefined);
+      }
+    }
+    const del = await this.pg.query('DELETE FROM media WHERE id = ANY($1::uuid[])', [ids]);
+    return del.rowCount ?? 0;
+  }
+
   private async toView(row: any): Promise<MediaView> {
     const view: MediaView = {
       id: row.id,
