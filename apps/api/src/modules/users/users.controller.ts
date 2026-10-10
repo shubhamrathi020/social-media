@@ -42,7 +42,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  byId(@Param('id', ParseUUIDPipe) id: string) {
-    return this.users.getPublic(id);
+  byId(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.users.getPublic(id, u.userId);
   }
 }

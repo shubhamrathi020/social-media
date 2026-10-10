@@ -29,9 +29,12 @@ close_friends(owner_id, friend_id, created_at,     -- directional, owner curates
 blocks(blocker_id, blocked_id, created_at, PRIMARY KEY(blocker_id, blocked_id))
 
 contact_hashes(user_id, hash, PRIMARY KEY(user_id, hash))   -- hashed phone numbers, opt-in
-friend_suggestions(user_id, suggested_id, score, reason[mutual|contact], mutual_count,
-                   dismissed_at, computed_at, PRIMARY KEY(user_id, suggested_id))
+suggestion_dismissals(user_id, dismissed_id, created_at, PRIMARY KEY(user_id, dismissed_id))
+-- users.phone_hash: generated sha256(phone), matched against contact_hashes
 ```
+Implementation note (Phase 2): suggestions are computed on demand with the query below rather than precomputed
+into a table. Move to a nightly job + Redis cache only if this query shows up in profiling.
+
 Suggestion query shape (friends of friends not yet friends, not blocked):
 ```sql
 SELECT f2.friend AS candidate, COUNT(*) AS mutual

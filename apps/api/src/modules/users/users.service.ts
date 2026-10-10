@@ -1,6 +1,7 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool } from 'pg';
 import { PG_POOL } from '../../common/infra.module';
+import { FriendsService } from '../friends/friends.service';
 import { UpdateProfileDto } from './dto';
 
 const PROFILE_COLS = `id, username, display_name AS "displayName", bio,
@@ -8,7 +9,10 @@ const PROFILE_COLS = `id, username, display_name AS "displayName", bio,
 
 @Injectable()
 export class UsersService {
-  constructor(@Inject(PG_POOL) private readonly pg: Pool) {}
+  constructor(
+    @Inject(PG_POOL) private readonly pg: Pool,
+    private readonly friends: FriendsService,
+  ) {}
 
   async getMe(userId: string) {
     const r = await this.pg.query(
@@ -19,13 +23,18 @@ export class UsersService {
     return r.rows[0];
   }
 
-  async getPublic(id: string) {
+  async getPublic(id: string, requesterId: string) {
     const r = await this.pg.query(
       `SELECT ${PROFILE_COLS} FROM users WHERE id = $1 AND deleted_at IS NULL`,
       [id],
     );
     if (!r.rows[0]) throw new NotFoundException();
-    return r.rows[0];
+    if (id === requesterId) return { ...r.rows[0], relationship: 'self' };
+
+    const rel = (await this.friends.relationships(requesterId, [id])).get(id)!;
+    // A user who blocked you looks like a user that does not exist.
+    if (rel === 'blocked_by') throw new NotFoundException();
+    return { ...r.rows[0], relationship: rel };
   }
 
   async updateMe(userId: string, dto: UpdateProfileDto) {
@@ -71,7 +80,10 @@ export class UsersService {
         LIMIT $3`,
       [term, requesterId, Math.min(limit, 50)],
     );
-    return r.rows;
+    const rels = await this.friends.relationships(requesterId, r.rows.map((row) => row.id));
+    return r.rows
+      .map((row) => ({ ...row, relationship: rels.get(row.id)! }))
+      .filter((row) => row.relationship !== 'blocked_by');
   }
 
   /** Soft-deletes the account and revokes every session. Data purge is a scheduled job later. */

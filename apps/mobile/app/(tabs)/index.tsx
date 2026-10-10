@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Text, TextInput, View } from 'react-native';
-import { useAuth } from '../src/state/auth';
+import { useAuth } from '../../src/state/auth';
 
 export default function Home() {
   const me = useAuth((s) => s.me);
