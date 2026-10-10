@@ -17,6 +17,7 @@ export const tokens = {
   setAccess: (t: string | null) => {
     accessToken = t;
   },
+  getAccess: () => accessToken,
   getRefresh: () => SecureStore.getItemAsync(REFRESH_KEY),
   setRefresh: (t: string) => SecureStore.setItemAsync(REFRESH_KEY, t),
   clear: async () => {
@@ -73,3 +74,6 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}, aut
 }
 
 export const json = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) });
+
+/** Used by the socket layer when its handshake token has expired. */
+export const refreshAccessToken = () => refreshTokens();

@@ -73,6 +73,15 @@ export class FriendsService {
     return out;
   }
 
+  async friendIds(userId: string): Promise<string[]> {
+    const r = await this.pg.query(
+      `SELECT user_b AS id FROM friendships WHERE user_a = $1
+       UNION ALL SELECT user_a FROM friendships WHERE user_b = $1`,
+      [userId],
+    );
+    return r.rows.map((row) => row.id);
+  }
+
   async areFriends(a: string, b: string): Promise<boolean> {
     const [x, y] = orderPair(a, b);
     const r = await this.pg.query('SELECT 1 FROM friendships WHERE user_a = $1 AND user_b = $2', [x, y]);

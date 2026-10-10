@@ -24,6 +24,12 @@ pnpm --filter @social/mobile dev                # scan the QR with Expo Go
 ```
 
 ## Checks
+End-to-end scripts (API must be running with `OTP_DEV_CODE=123456`):
+```bash
+cd apps/api && node scripts/smoke-friends.mjs && node scripts/smoke-media.mjs && node scripts/smoke-chat.mjs
+```
+
+Unit tests and types:
 ```bash
 pnpm typecheck && pnpm test
 ```

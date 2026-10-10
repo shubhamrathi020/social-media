@@ -79,13 +79,14 @@ conversations(id, type[direct|group], title NULL, avatar_media_id NULL, created_
               last_message_id, last_message_at, direct_key UNIQUE NULL)   -- direct_key = sorted user pair
 conversation_members(conversation_id, user_id, role[member|admin], joined_at,
                      last_read_message_id, muted_until, PRIMARY KEY(conversation_id, user_id))
-messages(id, conversation_id, sender_id, sender_device_id NULL, client_msg_id,
+messages(id BIGINT IDENTITY, conversation_id, sender_id, sender_device_id NULL, client_msg_id,
          type[text|image|video|audio|file|system],
          payload bytea,            -- plaintext JSON now, ciphertext later
          enc_version SMALLINT DEFAULT 0,
          reply_to_id NULL, created_at, deleted_at,
          UNIQUE(conversation_id, sender_id, client_msg_id))     -- idempotency
 message_receipts(message_id, user_id, delivered_at, read_at, PRIMARY KEY(message_id, user_id))
+message_hidden(user_id, message_id, PRIMARY KEY(user_id, message_id))   -- "delete for me"
 ```
 Index `messages(conversation_id, id DESC)`; partition by time later if large.
 

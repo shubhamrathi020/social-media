@@ -22,6 +22,7 @@
     "@nestjs/platform-socket.io": "^10.4.7",
     "@nestjs/websockets": "^10.4.7",
     "@social/shared": "workspace:*",
+    "@socket.io/redis-adapter": "^8.3.0",
     "bullmq": "^5.34.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
@@ -43,6 +44,7 @@
     "@types/pg": "^8.11.10",
     "jest": "^29.7.0",
     "node-pg-migrate": "^7.8.0",
+    "socket.io-client": "^4.8.1",
     "ts-jest": "^29.2.5",
     "typescript": "^5.6.3"
   },

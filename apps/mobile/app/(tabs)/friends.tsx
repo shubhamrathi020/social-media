@@ -1,5 +1,7 @@
 import { Alert, Button, SectionList, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api, json } from '../../src/lib/api';
 import { Avatar } from '../../src/components/Avatar';
 import { Friend, FriendRequest, Suggestion, friendsApi, nameOf } from '../../src/lib/friends';
 
@@ -10,6 +12,7 @@ type Item =
 
 export default function FriendsScreen() {
   const qc = useQueryClient();
+  const router = useRouter();
   const friends = useQuery({ queryKey: ['friends'], queryFn: friendsApi.friends });
   const incoming = useQuery({ queryKey: ['requests', 'in'], queryFn: friendsApi.incoming });
   const suggestions = useQuery({ queryKey: ['suggestions'], queryFn: friendsApi.suggestions });
@@ -63,6 +66,17 @@ export default function FriendsScreen() {
         const f = item.data;
         return (
           <Row avatar={f.avatarUrl} title={`${f.isCloseFriend ? '★ ' : ''}${nameOf(f)}`} subtitle={f.username ? `@${f.username}` : ''}>
+            <Button
+              title="Message"
+              onPress={async () => {
+                try {
+                  const c = await api<{ id: string }>('/conversations', json({ userId: f.id }));
+                  router.push({ pathname: '/chat/[id]', params: { id: c.id, title: nameOf(f) } });
+                } catch (e) {
+                  Alert.alert('Cannot message', e instanceof Error ? e.message : '');
+                }
+              }}
+            />
             <Button
               title={f.isCloseFriend ? 'Remove close' : 'Close friend'}
               onPress={() =>

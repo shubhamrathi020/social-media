@@ -115,3 +115,18 @@ Connect with `auth: { token }`. Server auto-joins `user:{id}` and the user's con
 - Authorisation checked per event: membership for chat, friendship/audience for stories and posts, block lists everywhere.
 - Rate limits: messages 30/10s per user, likes 60/min, friend requests 50/day.
 - Version event names by additive change; breaking changes go to `/v2` and a new namespace.
+
+## 4. As implemented (Phase 4)
+
+- **Socket auth:** `io(url, { auth: { token } })` with the access token; invalid or expired tokens fail the handshake
+  with `unauthorized`. Every user joins a personal room; events go to member rooms, so there is no room bookkeeping.
+- **Acks:** every client event is acknowledged as `{ ok: true, data }` or `{ ok: false, error: { code, message } }`.
+- **Client to server:** `message:send`, `message:delivered {messageIds[]}`, `message:read {conversationId, upToMessageId}`,
+  `typing:start|stop {conversationId}`, `presence:get {userIds[]}`.
+- **Server to client:** `message:new`, `message:status {messageId, conversationId, userId, status}`,
+  `conversation:read {conversationId, userId, upToMessageId}`, `message:deleted`, `conversation:new`, `typing`, `presence`.
+- **Message ids** are strings of a global bigint sequence; they order messages and serve as sync cursors.
+- **Offline catch-up:** `GET /chat/sync?after=<id>` returns messages addressed to the user after a cursor.
+- **Delete:** `DELETE /messages/:id?scope=me|everyone` (everyone: own messages, within 48 h).
+- **Who can start a chat** follows the target's `privacy.messages` setting (default `friends`); blocks stop all messaging.
+- **Not yet built:** group member management (add/remove/admin), mute, reply UI, push notifications for offline users.
