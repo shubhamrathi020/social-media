@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Text, TextInput, View } from 'react-native';
+import { Alert, Button, View } from 'react-native';
+import { Text, TextInput } from '../../src/components/themed';
 import { Stack, useRouter } from 'expo-router';
 import { liveApi } from '../../src/lib/live';
 
@@ -77,7 +78,7 @@ export default function GoLive() {
         onChangeText={setTitle}
         placeholder="Add a title"
         maxLength={100}
-        style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12 }}
+        style={{ borderWidth: 1, borderRadius: 8, padding: 12 }}
       />
       <Button
         title={closeOnly ? '★ Close friends only (tap to change)' : 'All friends (tap for close friends only)'}

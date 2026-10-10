@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
+import { Alert } from 'react-native';
 import { useQueryClient, QueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useAuth } from '../state/auth';
@@ -87,6 +88,18 @@ export function useChatEvents() {
       qc.invalidateQueries({ queryKey: ['conversations'] });
     });
     s.on('conversation:new', () => qc.invalidateQueries({ queryKey: ['conversations'] }));
+    s.on('conversation:updated', (p: { conversationId: string }) => {
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+      qc.invalidateQueries({ queryKey: ['conversation', p.conversationId] });
+    });
+    s.on('conversation:removed', (p: { conversationId: string }) => {
+      qc.removeQueries({ queryKey: ['messages', p.conversationId] });
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+    });
+    s.on('account:suspended', () => {
+      Alert.alert('Account suspended', 'This account was suspended for breaking the community rules.');
+      void useAuth.getState().logout();
+    });
     s.on('typing', (p: { conversationId: string; userId: string; isTyping: boolean }) =>
       live.setTyping(p.conversationId, p.userId, p.isTyping),
     );

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
+import { Text, TextInput } from './themed';
 import {
   AudioSession,
   LiveKitRoom,
@@ -127,7 +128,7 @@ export function LiveRoomView({ liveId, url, token, isHost, initialChat, onEnded,
             style={{ flex: 1, color: 'white', borderWidth: 1, borderColor: '#888', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 }}
           />
           {!isHost && (
-            <Pressable onPress={() => emitAck('live:heart', { liveId })}>
+            <Pressable onPress={() => emitAck('live:heart', { liveId })} accessibilityRole="button" accessibilityLabel="Send a heart">
               <Text style={{ fontSize: 28 }}>❤️</Text>
             </Pressable>
           )}

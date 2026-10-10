@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert, FlatList, Image, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View,
-} from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Alert, Button, FlatList, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Text, TextInput } from '../../src/components/themed';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../src/lib/api';
 import { pickFromLibrary, uploadMedia } from '../../src/lib/media';
@@ -10,7 +10,8 @@ import { useAuth } from '../../src/state/auth';
 import { emitAck } from '../../src/chat/socket';
 import { useLive } from '../../src/chat/live-state';
 import { upsertMessage } from '../../src/chat/use-chat-events';
-import { ChatMessage } from '../../src/chat/types';
+import { ChatMessage, Conversation, conversationTitle, describeSystem, memberName } from '../../src/chat/types';
+import { useTheme } from '../../src/theme';
 
 const TICKS: Record<string, string> = { sending: '…', sent: '✓', delivered: '✓✓', read: '✓✓', failed: '!' };
 const uuid = () =>
@@ -22,12 +23,26 @@ const uuid = () =>
 export default function ChatScreen() {
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
   const meId = useAuth((s) => s.me!.id);
+  const c = useTheme();
   const qc = useQueryClient();
   const [text, setText] = useState('');
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingSent = useRef(false);
 
   const typers = useLive((s) => s.typing[id] ?? []).filter((u) => u !== meId);
+  const router = useRouter();
+
+  // The conversation (title, members) comes from the list cache, refreshed when the group changes.
+  const { data: conversations } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => api<Conversation[]>('/conversations'),
+  });
+  const conv = conversations?.find((x) => x.id === id);
+  const names = useMemo(
+    () => new Map((conv?.members ?? []).map((m) => [m.id, memberName(m)] as const)),
+    [conv?.members],
+  );
+  const headerTitle = conv ? conversationTitle(conv, meId) : (title ?? 'Chat');
 
   const { data: messages = [] } = useQuery({
     queryKey: ['messages', id],
@@ -103,7 +118,7 @@ export default function ChatScreen() {
   useEffect(() => () => stopTyping(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onLongPress(m: ChatMessage) {
-    if (m.deleted || m.id.startsWith('local-')) return;
+    if (m.deleted || m.type === 'system' || m.id.startsWith('local-')) return;
     const buttons: Parameters<typeof Alert.alert>[2] = [
       { text: 'Delete for me', onPress: () => remove(m, 'me') },
     ];
@@ -130,7 +145,15 @@ export default function ChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}
     >
-      <Stack.Screen options={{ headerShown: true, title: title ?? 'Chat' }} />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: headerTitle,
+          headerRight: () => (
+            <Button title="Info" onPress={() => router.push({ pathname: '/chat/info', params: { id } })} />
+          ),
+        }}
+      />
       <FlatList<ChatMessage>
         inverted
         data={messages}
@@ -138,15 +161,28 @@ export default function ChatScreen() {
         onEndReached={loadOlder}
         contentContainerStyle={{ padding: 12, gap: 6 }}
         renderItem={({ item }) => {
+          if (item.type === 'system') {
+            return (
+              <Text style={{ alignSelf: 'center', color: c.muted, fontSize: 13, paddingVertical: 4, textAlign: 'center' }}>
+                {describeSystem(item, names, meId)}
+              </Text>
+            );
+          }
           const mine = item.senderId === meId;
+          const showSender = conv?.type === 'group' && !mine;
           return (
             <Pressable
               onLongPress={() => onLongPress(item)}
               style={{
                 alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '80%', padding: 10, borderRadius: 14,
-                backgroundColor: mine ? '#2563eb' : '#e5e7eb',
+                backgroundColor: mine ? '#2563eb' : c.subtle,
               }}
             >
+              {showSender && (
+                <Text style={{ fontSize: 12, fontWeight: '700', color: c.primary, marginBottom: 2 }}>
+                  {names.get(item.senderId) ?? 'Former member'}
+                </Text>
+              )}
               {item.deleted ? (
                 <Text style={{ fontStyle: 'italic', color: mine ? '#dbeafe' : 'gray' }}>Message deleted</Text>
               ) : (
@@ -155,10 +191,12 @@ export default function ChatScreen() {
                     <Image
                       source={{ uri: item.media.thumbUrl }}
                       style={{ width: 200, height: 150, borderRadius: 8, marginBottom: 4 }}
+                      cachePolicy="memory-disk"
+                      accessibilityLabel="Photo"
                     />
                   )}
                   {!!(item.payload.text ?? item.payload.caption) && (
-                    <Text style={{ color: mine ? 'white' : 'black', fontSize: 16 }}>
+                    <Text style={{ color: mine ? 'white' : c.text, fontSize: 16 }}>
                       {item.payload.text ?? item.payload.caption}
                     </Text>
                   )}
@@ -179,16 +217,16 @@ export default function ChatScreen() {
         }}
       />
       {typers.length > 0 && <Text style={{ paddingHorizontal: 16, color: 'gray' }}>typing…</Text>}
-      <View style={{ flexDirection: 'row', padding: 8, gap: 8, alignItems: 'center', borderTopWidth: 1, borderColor: '#eee' }}>
-        <Pressable onPress={sendPhoto}><Text style={{ fontSize: 24 }}>📷</Text></Pressable>
+      <View style={{ flexDirection: 'row', padding: 8, gap: 8, alignItems: 'center', borderTopWidth: 1, borderColor: c.border }}>
+        <Pressable onPress={sendPhoto} accessibilityRole="button" accessibilityLabel="Send a photo"><Text style={{ fontSize: 24 }}>📷</Text></Pressable>
         <TextInput
           value={text}
           onChangeText={onChange}
           placeholder="Message"
           multiline
-          style={{ flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, maxHeight: 120 }}
+          style={{ flex: 1, borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, maxHeight: 120 }}
         />
-        <Pressable onPress={sendText} disabled={!text.trim()}>
+        <Pressable onPress={sendText} disabled={!text.trim()} accessibilityRole="button" accessibilityLabel="Send message">
           <Text style={{ fontSize: 16, fontWeight: '700', color: text.trim() ? '#2563eb' : '#aaa' }}>Send</Text>
         </Pressable>
       </View>

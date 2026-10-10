@@ -36,6 +36,7 @@ export interface PostView {
   commentCount: number;
   myReaction: 1 | -1 | null;
   createdAt: string;
+  underReview?: boolean;
 }
 
 export interface Page<T> {
@@ -45,7 +46,7 @@ export interface Page<T> {
 
 const POST_COLS = `p.id, p.seq, p.author_id AS "authorId", p.caption, p.audience,
   p.like_count AS "likeCount", p.dislike_count AS "dislikeCount", p.comment_count AS "commentCount",
-  p.created_at AS "createdAt"`;
+  p.created_at AS "createdAt", p.hidden_at AS "hiddenAt"`;
 
 export const AUTHOR_COLS = `u.id, u.username, u.display_name AS "displayName", u.avatar_media_id AS "avatarMediaId"`;
 
@@ -330,6 +331,8 @@ export class PostsService {
       commentCount: r.commentCount,
       myReaction: myReaction.get(r.id) ?? null,
       createdAt: r.createdAt,
+      // Only the author ever receives a hidden post, so this tells them it is waiting for a moderator.
+      ...(r.authorId === viewer && r.hiddenAt ? { underReview: true } : {}),
     }));
   }
 }

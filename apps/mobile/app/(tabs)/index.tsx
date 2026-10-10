@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button, Text, TextInput, View } from 'react-native';
+import { Button, View } from 'react-native';
+import { Text, TextInput } from '../../src/components/themed';
 import { useRouter } from 'expo-router';
 import { Avatar } from '../../src/components/Avatar';
 import { pickFromLibrary, uploadMedia } from '../../src/lib/media';

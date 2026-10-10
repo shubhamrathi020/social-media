@@ -1,4 +1,5 @@
-import { Alert, Button, FlatList, Text, View } from 'react-native';
+import { Alert, Button, FlatList, View } from 'react-native';
+import { Text } from '../../src/components/themed';
 import { Stack } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Avatar } from '../../src/components/Avatar';

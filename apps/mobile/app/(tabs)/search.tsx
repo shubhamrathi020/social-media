@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, FlatList, Text, TextInput, View } from 'react-native';
+import { Alert, Button, FlatList, View } from 'react-native';
+import { Text, TextInput } from '../../src/components/themed';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Avatar } from '../../src/components/Avatar';
 import { Relationship, SearchResult, friendsApi, nameOf } from '../../src/lib/friends';

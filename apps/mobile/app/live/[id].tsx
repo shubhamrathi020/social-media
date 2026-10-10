@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Button, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Button, View } from 'react-native';
+import { Text } from '../../src/components/themed';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { LiveJoin, liveApi } from '../../src/lib/live';
 

@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Alert, Button, Image, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Button, ScrollView, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Text, TextInput } from '../../src/components/themed';
 import { Stack, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { MAX_POST_SLIDES } from '@social/shared';
@@ -74,7 +76,7 @@ export default function NewPost() {
         placeholder="Write a caption…"
         multiline
         maxLength={2200}
-        style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, minHeight: 80 }}
+        style={{ borderWidth: 1, borderRadius: 8, padding: 12, minHeight: 80 }}
       />
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         {AUDIENCES.map((a) => (

@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { Button, Text, TextInput, View } from 'react-native';
+import { Button, View } from 'react-native';
+import { Text, TextInput } from '../../src/components/themed';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/state/auth';
+import { useT } from '../../src/i18n';
 
 export default function PhoneScreen() {
+  const t = useT();
   const [phone, setPhone] = useState('+');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,8 +28,8 @@ export default function PhoneScreen() {
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 12 }}>
-      <Text style={{ fontSize: 24, fontWeight: '600' }}>Enter your phone number</Text>
-      <Text>Use international format, e.g. +14155550123</Text>
+      <Text style={{ fontSize: 24, fontWeight: '600' }}>{t('Enter your phone number')}</Text>
+      <Text>{t('Use international format, e.g. +14155550123')}</Text>
       <TextInput
         value={phone}
         onChangeText={setPhone}
@@ -35,7 +38,7 @@ export default function PhoneScreen() {
         style={{ borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 18 }}
       />
       {error && <Text style={{ color: 'crimson' }}>{error}</Text>}
-      <Button title={busy ? 'Sending…' : 'Send code'} onPress={submit} disabled={busy} />
+      <Button title={busy ? t('Sending…') : t('Send code')} onPress={submit} disabled={busy} />
     </View>
   );
 }

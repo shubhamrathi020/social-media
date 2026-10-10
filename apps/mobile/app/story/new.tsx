@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Alert, Button, Image, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Button, ScrollView, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Text, TextInput } from '../../src/components/themed';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { PickedFile, pickFromLibrary, uploadMedia } from '../../src/lib/media';
@@ -77,7 +79,7 @@ export default function NewStory() {
         placeholder={isStatus ? 'Status text' : 'Caption (optional)'}
         multiline
         maxLength={700}
-        style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, minHeight: 60 }}
+        style={{ borderWidth: 1, borderRadius: 8, padding: 12, minHeight: 60 }}
       />
       {isStatus && !file && (
         <View style={{ flexDirection: 'row', gap: 10 }}>

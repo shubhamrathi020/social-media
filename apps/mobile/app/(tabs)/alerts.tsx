@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
+import { Text } from '../../src/components/themed';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Avatar } from '../../src/components/Avatar';
 import { connectSocket } from '../../src/chat/socket';
 import { Notification, notificationsApi } from '../../src/lib/settings';
+import { useTheme } from '../../src/theme';
 
 const TEXT: Record<Notification['type'], (n: Notification) => string> = {
   friend_request: () => 'sent you a friend request',
@@ -18,6 +20,7 @@ const TEXT: Record<Notification['type'], (n: Notification) => string> = {
 export default function Alerts() {
   const router = useRouter();
   const qc = useQueryClient();
+  const c = useTheme();
 
   const q = useInfiniteQuery({
     queryKey: ['notifications'],
@@ -64,7 +67,7 @@ export default function Alerts() {
           onPress={() => open(item)}
           style={{
             flexDirection: 'row', gap: 12, padding: 12, alignItems: 'center',
-            backgroundColor: item.readAt ? 'transparent' : '#eff6ff',
+            backgroundColor: item.readAt ? 'transparent' : c.highlight,
           }}
         >
           <Avatar url={item.actor?.avatarUrl} name={item.actor?.displayName ?? item.actor?.username} />

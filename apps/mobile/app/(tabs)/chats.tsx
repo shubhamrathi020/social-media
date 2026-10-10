@@ -1,10 +1,12 @@
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { Button, FlatList, Pressable, View } from 'react-native';
+import { Text } from '../../src/components/themed';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { StoryTray } from '../../src/components/StoryTray';
+import { ErrorState } from '../../src/components/ErrorState';
 import { Avatar } from '../../src/components/Avatar';
 import { useLive } from '../../src/chat/live-state';
-import { Conversation, conversationTitle, previewOf } from '../../src/chat/types';
+import { Conversation, conversationTitle, isMuted, memberName, previewOf } from '../../src/chat/types';
 import { api } from '../../src/lib/api';
 import { useAuth } from '../../src/state/auth';
 
@@ -14,7 +16,7 @@ export default function ChatsScreen() {
   const presence = useLive((s) => s.presence);
   const typing = useLive((s) => s.typing);
 
-  const { data, refetch, isFetching } = useQuery({
+  const { data, refetch, isFetching, error } = useQuery({
     queryKey: ['conversations'],
     queryFn: () => api<Conversation[]>('/conversations'),
   });
@@ -25,9 +27,20 @@ export default function ChatsScreen() {
       keyExtractor={(c) => c.id}
       refreshing={isFetching}
       onRefresh={refetch}
-      ListHeaderComponent={<StoryTray kind="status" />}
+      ListHeaderComponent={
+        <View>
+          <StoryTray kind="status" />
+          <View style={{ paddingHorizontal: 10, paddingBottom: 6 }}>
+            <Button title="New group" onPress={() => router.push('/chat/new-group')} />
+          </View>
+        </View>
+      }
       ListEmptyComponent={
-        <Text style={{ padding: 24 }}>No chats yet. Open the Friends tab and tap Message.</Text>
+        error ? (
+          <ErrorState error={error} onRetry={refetch} />
+        ) : (
+          <Text style={{ padding: 24 }}>No chats yet. Open the Friends tab and tap Message.</Text>
+        )
       }
       renderItem={({ item }) => {
         const other = item.type === 'direct' ? item.members.find((m) => m.id !== meId) : undefined;
@@ -36,11 +49,13 @@ export default function ChatsScreen() {
         const title = conversationTitle(item, meId);
         return (
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${title}${item.unread ? `, ${item.unread} unread` : ''}${online ? ', online' : ''}`}
             onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.id, title } })}
             style={{ flexDirection: 'row', padding: 12, gap: 12, borderBottomWidth: 1, borderColor: '#eee' }}
           >
             <View>
-              <Avatar url={other?.avatarUrl} name={title} size={48} />
+              <Avatar url={item.type === 'group' ? item.avatarUrl : other?.avatarUrl} name={title} size={48} />
               {online && (
                 <View
                   style={{
@@ -51,9 +66,14 @@ export default function ChatsScreen() {
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: '600', fontSize: 16 }}>{title}</Text>
+              <Text style={{ fontWeight: '600', fontSize: 16 }}>
+                {title}
+                {isMuted(item) ? ' 🔕' : ''}
+              </Text>
               <Text numberOfLines={1} style={{ color: someoneTyping ? '#22c55e' : 'gray' }}>
-                {someoneTyping ? 'typing…' : previewOf(item.lastMessage)}
+                {someoneTyping
+                  ? 'typing…'
+                  : previewOf(item.lastMessage, new Map(item.members.map((m) => [m.id, memberName(m)])), meId)}
               </Text>
             </View>
             {item.unread > 0 && (

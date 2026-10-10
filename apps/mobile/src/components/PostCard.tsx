@@ -1,5 +1,7 @@
 import { memo, useState } from 'react';
-import { Alert, FlatList, Image, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Alert, FlatList, Pressable, View, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
+import { Text } from './themed';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { InfiniteData, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Avatar } from './Avatar';
@@ -18,7 +20,7 @@ function SlideView({ slide, size }: { slide: Slide; size: number }) {
   const m = slide.media;
   if (!m?.url) return <View style={{ width: size, height: size, backgroundColor: '#ddd' }} />;
   if (m.kind === 'video') return <VideoSlide url={m.url} size={size} />;
-  return <Image source={{ uri: m.url }} style={{ width: size, height: size }} resizeMode="cover" />;
+  return <Image source={{ uri: m.url }} style={{ width: size, height: size }} contentFit="cover" />;
 }
 
 /** Patches one post inside every cached feed/profile page and the single-post cache. */
@@ -97,11 +99,19 @@ function PostCardBase({ post, onOpen }: { post: Post; onOpen?: () => void }) {
             {post.audience === 'close_friends' ? '★ Close friends' : 'Public'}
           </Text>
         )}
-        <Pressable onPress={menu} style={{ marginLeft: 'auto', padding: 6 }}>
+        <Pressable onPress={menu} style={{ marginLeft: 'auto', padding: 6 }} accessibilityRole="button" accessibilityLabel="Post options">
           <Text style={{ fontSize: 18 }}>⋯</Text>
         </Pressable>
       </View>
 
+      {post.underReview && (
+        <Text
+          accessibilityRole="alert"
+          style={{ marginHorizontal: 10, marginBottom: 6, padding: 8, borderRadius: 8, backgroundColor: '#fef3c7', color: '#92400e' }}
+        >
+          Only you can see this post while it is being reviewed.
+        </Text>
+      )}
       <FlatList
         data={post.slides}
         keyExtractor={(s) => String(s.position)}
@@ -123,13 +133,23 @@ function PostCardBase({ post, onOpen }: { post: Post; onOpen?: () => void }) {
       )}
 
       <View style={{ flexDirection: 'row', gap: 20, padding: 10, alignItems: 'center' }}>
-        <Pressable onPress={() => toggle(1)}>
+        <Pressable
+          onPress={() => toggle(1)}
+          accessibilityRole="button"
+          accessibilityLabel={`Like, ${post.likeCount} likes`}
+          accessibilityState={{ selected: post.myReaction === 1 }}
+        >
           <Text style={{ fontSize: 16 }}>{post.myReaction === 1 ? '❤️' : '🤍'} {post.likeCount}</Text>
         </Pressable>
-        <Pressable onPress={() => toggle(-1)}>
+        <Pressable
+          onPress={() => toggle(-1)}
+          accessibilityRole="button"
+          accessibilityLabel="Dislike"
+          accessibilityState={{ selected: post.myReaction === -1 }}
+        >
           <Text style={{ fontSize: 16, opacity: post.myReaction === -1 ? 1 : 0.5 }}>👎</Text>
         </Pressable>
-        <Pressable onPress={onOpen}>
+        <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Comments, ${post.commentCount}`}>
           <Text style={{ fontSize: 16 }}>💬 {post.commentCount}</Text>
         </Pressable>
         {post.dislikeCount !== undefined && (

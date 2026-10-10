@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, Pressable, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Alert, Pressable, View, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
+import { Text, TextInput } from '../../src/components/themed';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -65,7 +67,7 @@ export default function StoryViewer() {
     if (!current) return null;
     if (current.media?.kind === 'video' && current.media.url) return <VideoItem url={current.media.url} />;
     if (current.media?.url) {
-      return <Image source={{ uri: current.media.url }} style={{ flex: 1 }} resizeMode="contain" />;
+      return <Image source={{ uri: current.media.url }} style={{ flex: 1 }} contentFit="contain" />;
     }
     return (
       <View style={{ flex: 1, backgroundColor: current.background ?? '#2563eb', justifyContent: 'center', padding: 24 }}>

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
+import { Text } from './themed';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Avatar } from './Avatar';
@@ -59,7 +60,12 @@ export function StoryTray({ kind }: { kind: StoryKind }) {
           );
         }
         return (
-          <Pressable style={{ alignItems: 'center', width: 70 }} onPress={() => open(item.author.id)}>
+          <Pressable
+            style={{ alignItems: 'center', width: 70 }}
+            onPress={() => open(item.author.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`${item.author.displayName ?? item.author.username}'s ${kind}${item.hasUnseen ? ', new' : ''}`}
+          >
             <View style={ring(true, item.hasUnseen)}>
               <Avatar url={item.author.avatarUrl} name={item.author.displayName ?? item.author.username} size={56} />
             </View>

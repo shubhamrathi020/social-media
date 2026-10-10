@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { Button, Text, TextInput, View } from 'react-native';
+import { Button, View } from 'react-native';
+import { Text, TextInput } from '../../src/components/themed';
 import { useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../src/state/auth';
+import { useT } from '../../src/i18n';
 
 export default function OtpScreen() {
+  const t = useT();
   const { phone } = useLocalSearchParams<{ phone: string }>();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -25,8 +28,10 @@ export default function OtpScreen() {
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 12 }}>
-      <Text style={{ fontSize: 24, fontWeight: '600' }}>Enter the 6-digit code</Text>
-      <Text>Sent to {phone}</Text>
+      <Text style={{ fontSize: 24, fontWeight: '600' }}>{t('Enter the 6-digit code')}</Text>
+      <Text>
+        {t('Sent to')} {phone}
+      </Text>
       <TextInput
         value={code}
         onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, 6))}
@@ -36,7 +41,7 @@ export default function OtpScreen() {
         style={{ borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 24, letterSpacing: 8 }}
       />
       {error && <Text style={{ color: 'crimson' }}>{error}</Text>}
-      <Button title={busy ? 'Verifying…' : 'Verify'} onPress={submit} disabled={busy || code.length !== 6} />
+      <Button title={busy ? t('Verifying…') : t('Verify')} onPress={submit} disabled={busy || code.length !== 6} />
     </View>
   );
 }

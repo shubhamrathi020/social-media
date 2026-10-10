@@ -34,6 +34,8 @@ export interface Post {
   commentCount: number;
   myReaction: Reaction;
   createdAt: string;
+  /** Only ever set on your own posts: hidden from others until a moderator reviews it. */
+  underReview?: boolean;
 }
 
 export interface Comment {

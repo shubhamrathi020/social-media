@@ -16,6 +16,12 @@
           "cameraPermission": "Allow $(PRODUCT_NAME) to use your camera to go live",
           "microphonePermission": "Allow $(PRODUCT_NAME) to use your microphone to go live"
         }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow $(PRODUCT_NAME) to find friends from your contacts"
+        }
       ]
     ],
     "experiments": {
@@ -25,7 +31,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Used to broadcast live video to your friends",
         "NSMicrophoneUsageDescription": "Used to broadcast live audio to your friends",
-        "NSPhotoLibraryUsageDescription": "Used to choose photos and videos to share"
+        "NSPhotoLibraryUsageDescription": "Used to choose photos and videos to share",
+        "NSContactsUsageDescription": "Used to find friends from your contacts when you ask"
       },
       "bundleIdentifier": "com.example.social"
     },
@@ -33,7 +40,8 @@
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS"
+        "MODIFY_AUDIO_SETTINGS",
+        "READ_CONTACTS"
       ],
       "package": "com.example.social"
     }

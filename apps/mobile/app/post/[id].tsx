@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Button, FlatList, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
+import { Text, TextInput } from '../../src/components/themed';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Avatar } from '../../src/components/Avatar';
@@ -125,7 +126,7 @@ export default function PostScreen() {
       {replyTo && (
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12 }}>
           <Text style={{ color: 'gray' }}>Replying to {replyTo.author.displayName ?? replyTo.author.username}</Text>
-          <Pressable onPress={() => setReplyTo(null)}><Text>✕</Text></Pressable>
+          <Pressable onPress={() => setReplyTo(null)} accessibilityRole="button" accessibilityLabel="Cancel reply"><Text>✕</Text></Pressable>
         </View>
       )}
       <View style={{ flexDirection: 'row', padding: 8, gap: 8, alignItems: 'center', borderTopWidth: 1, borderColor: '#eee' }}>
@@ -134,7 +135,7 @@ export default function PostScreen() {
           onChangeText={setText}
           placeholder="Add a comment…"
           maxLength={1000}
-          style={{ flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 }}
+          style={{ flex: 1, borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 }}
         />
         <Button title="Post" onPress={submit} disabled={!text.trim()} />
       </View>

@@ -1,8 +1,12 @@
-import { Alert, Button, SectionList, Text, View } from 'react-native';
+import { Alert, Button, SectionList, View } from 'react-native';
+import { Text } from '../../src/components/themed';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, json } from '../../src/lib/api';
 import { Avatar } from '../../src/components/Avatar';
+import { syncContacts } from '../../src/lib/contacts';
+import { useAuth } from '../../src/state/auth';
+import { useTheme } from '../../src/theme';
 import { Friend, FriendRequest, Suggestion, friendsApi, nameOf } from '../../src/lib/friends';
 
 type Item =
@@ -13,9 +17,33 @@ type Item =
 export default function FriendsScreen() {
   const qc = useQueryClient();
   const router = useRouter();
+  const c = useTheme();
   const friends = useQuery({ queryKey: ['friends'], queryFn: friendsApi.friends });
   const incoming = useQuery({ queryKey: ['requests', 'in'], queryFn: friendsApi.incoming });
   const suggestions = useQuery({ queryKey: ['suggestions'], queryFn: friendsApi.suggestions });
+  const myPhone = useAuth((s) => s.me?.phone ?? '');
+
+  const findFromContacts = () =>
+    Alert.alert(
+      'Find friends from contacts',
+      'Your contacts\' phone numbers are sent securely to match people who use the app. The numbers are not stored; only a keyed fingerprint is kept so new matches can be suggested later.',
+      [
+        { text: 'Not now', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: async () => {
+            try {
+              const r = await syncContacts(myPhone);
+              if (!r) return Alert.alert('Contacts access was not allowed');
+              await qc.invalidateQueries({ queryKey: ['suggestions'] });
+              Alert.alert('Done', r.matched ? `${r.matched} of your contacts use the app.` : 'None of your contacts use the app yet.');
+            } catch (e) {
+              Alert.alert('Could not read contacts', e instanceof Error ? e.message : '');
+            }
+          },
+        },
+      ],
+    );
 
   const refresh = () => qc.invalidateQueries();
   const run = useMutation({
@@ -36,9 +64,14 @@ export default function FriendsScreen() {
       keyExtractor={(item) => `${item.kind}:${item.data.id}`}
       refreshing={friends.isFetching}
       onRefresh={refresh}
+      ListHeaderComponent={
+        <View style={{ padding: 10 }}>
+          <Button title="Find friends from contacts" onPress={findFromContacts} />
+        </View>
+      }
       ListEmptyComponent={<Text style={{ padding: 24 }}>No friends yet. Use Search to find people.</Text>}
       renderSectionHeader={({ section }) => (
-        <Text style={{ fontWeight: '700', padding: 12, backgroundColor: '#eee' }}>{section.title}</Text>
+        <Text accessibilityRole="header" style={{ fontWeight: '700', padding: 12, backgroundColor: c.subtle }}>{section.title}</Text>
       )}
       renderItem={({ item }) => {
         if (item.kind === 'request') {
@@ -114,7 +147,7 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <View style={{ padding: 12, gap: 6, borderBottomWidth: 1, borderColor: '#ddd' }}>
+    <View style={{ padding: 12, gap: 6, borderBottomWidth: 1, borderColor: useTheme().border }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <Avatar url={avatar} name={title} />
         <View>
