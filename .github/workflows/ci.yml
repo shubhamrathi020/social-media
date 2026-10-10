@@ -68,6 +68,8 @@ jobs:
       LIVEKIT_API_SECRET: secret
       OTP_DEV_CODE: '123456'
       PUSH_MODE: log
+      MAINTENANCE_INTERVAL_MS: 2000
+      CONTACT_PEPPER: ci-pepper-ci-pepper-ci-pepper-ci-pepper
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -98,7 +100,7 @@ jobs:
         working-directory: apps/api
         run: |
           set -e
-          for suite in friends media chat posts stories live notifications; do
+          for suite in friends media chat groups posts stories live notifications account; do
             echo "::group::smoke-$suite"
             node scripts/smoke-$suite.mjs
             echo "::endgroup::"
