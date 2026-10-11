@@ -44,6 +44,10 @@
         "READ_CONTACTS"
       ],
       "package": "com.example.social"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
     }
   }
 }

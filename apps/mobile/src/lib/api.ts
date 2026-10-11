@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import { storage } from './storage';
 import { API_URL } from './config';
 
 const REFRESH_KEY = 'refreshToken';
@@ -18,11 +18,11 @@ export const tokens = {
     accessToken = t;
   },
   getAccess: () => accessToken,
-  getRefresh: () => SecureStore.getItemAsync(REFRESH_KEY),
-  setRefresh: (t: string) => SecureStore.setItemAsync(REFRESH_KEY, t),
+  getRefresh: () => storage.get(REFRESH_KEY),
+  setRefresh: (t: string) => storage.set(REFRESH_KEY, t),
   clear: async () => {
     accessToken = null;
-    await SecureStore.deleteItemAsync(REFRESH_KEY);
+    await storage.remove(REFRESH_KEY);
   },
   onSignedOut: (fn: () => void) => {
     onSignedOut = fn;

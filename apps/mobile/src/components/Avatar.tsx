@@ -15,8 +15,12 @@ export function Avatar({ url, name, size = 40 }: { url?: string | null; name?: s
     );
   }
   return (
-    <View style={[base, { backgroundColor: '#c9d3e6', alignItems: 'center', justifyContent: 'center' }]}>
-      <Text style={{ fontWeight: '700', fontSize: size / 2.2 }}>{(name ?? '?').slice(0, 1).toUpperCase()}</Text>
+    <View
+      style={[base, { backgroundColor: '#c9d3e6', alignItems: 'center', justifyContent: 'center' }]}
+      accessibilityLabel={name ? `${name}'s photo` : 'Profile photo'}
+    >
+      {/* Fixed dark text: the circle is light in both themes. */}
+      <Text style={{ fontWeight: '700', fontSize: size / 2.2, color: '#1f2937' }}>{(name ?? '?').slice(0, 1).toUpperCase()}</Text>
     </View>
   );
 }

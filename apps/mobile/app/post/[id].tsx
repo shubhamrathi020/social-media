@@ -129,7 +129,7 @@ export default function PostScreen() {
           <Pressable onPress={() => setReplyTo(null)} accessibilityRole="button" accessibilityLabel="Cancel reply"><Text>✕</Text></Pressable>
         </View>
       )}
-      <View style={{ flexDirection: 'row', padding: 8, gap: 8, alignItems: 'center', borderTopWidth: 1, borderColor: '#eee' }}>
+      <View style={{ flexDirection: 'row', padding: 8, gap: 8, alignItems: 'center', borderTopWidth: 1, borderColor: 'rgba(127,127,127,0.25)' }}>
         <TextInput
           value={text}
           onChangeText={setText}

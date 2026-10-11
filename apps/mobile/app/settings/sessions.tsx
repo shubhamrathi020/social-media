@@ -15,7 +15,7 @@ export default function Sessions() {
         data={data}
         keyExtractor={(s) => s.id}
         renderItem={({ item }) => (
-          <View style={{ padding: 14, gap: 4, borderBottomWidth: 1, borderColor: '#eee' }}>
+          <View style={{ padding: 14, gap: 4, borderBottomWidth: 1, borderColor: 'rgba(127,127,127,0.25)' }}>
             <Text style={{ fontWeight: '600', fontSize: 16 }}>
               {item.platform}
               {item.current ? '  ·  this device' : ''}

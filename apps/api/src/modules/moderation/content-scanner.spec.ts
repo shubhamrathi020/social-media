@@ -34,15 +34,36 @@ describe('TestColourScanner', () => {
 });
 
 describe('NsfwJsScanner (real open-source model)', () => {
+  const scanner = new NsfwJsScanner();
+  afterAll(() => scanner.onModuleDestroy());
+
   it('loads offline and does not flag an ordinary image', async () => {
-    const s = new NsfwJsScanner();
-    const result = await s.scan(await image({ r: 60, g: 120, b: 200 }));
+    const result = await scanner.scan(await image({ r: 60, g: 120, b: 200 }));
     expect(result).not.toBeNull();
     expect(result!.explicit).toBeLessThan(scanPolicy().review);
   }, 120_000);
 
+  it('does not block the event loop while the model loads and scans', async () => {
+    const fresh = new NsfwJsScanner(); // cold start: model load happens during this test
+    let last = Date.now();
+    let worstGap = 0;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      worstGap = Math.max(worstGap, now - last);
+      last = now;
+    }, 20);
+    try {
+      await fresh.scan(await image({ r: 200, g: 180, b: 40 }));
+      await fresh.scan(await image({ r: 20, g: 40, b: 60 }));
+    } finally {
+      clearInterval(timer);
+      await fresh.onModuleDestroy();
+    }
+    // On the main thread the model load alone stalls for seconds; in the worker the loop stays responsive.
+    expect(worstGap).toBeLessThan(300);
+  }, 120_000);
+
   it('returns null instead of throwing on garbage input', async () => {
-    const s = new NsfwJsScanner();
-    await expect(s.scan(Buffer.from('not an image'))).resolves.toBeNull();
+    await expect(scanner.scan(Buffer.from('not an image'))).resolves.toBeNull();
   }, 120_000);
 });

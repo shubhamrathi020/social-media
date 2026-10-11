@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import { storage } from '../lib/storage';
 import { useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useQueryClient, QueryClient } from '@tanstack/react-query';
@@ -43,11 +43,11 @@ export function useChatEvents() {
     let cursor: string | null = null;
     const saveCursor = (id: string) => {
       cursor = cursor ? bigger(cursor, id) : id;
-      SecureStore.setItemAsync(cursorKey, cursor).catch(() => undefined);
+      storage.set(cursorKey, cursor).catch(() => undefined);
     };
 
     const catchUp = async () => {
-      cursor ??= (await SecureStore.getItemAsync(cursorKey)) ?? null;
+      cursor ??= (await storage.get(cursorKey)) ?? null;
       if (cursor === null) {
         // Fresh install: start from the newest message we know about instead of replaying history.
         const convs = await api<Conversation[]>('/conversations').catch(() => []);

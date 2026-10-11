@@ -99,7 +99,7 @@ export default function SettingsScreen() {
         value={t(data.theme[0].toUpperCase() + data.theme.slice(1))}
         onPress={() => {
           const next = cycle(THEMES, data.theme);
-          Appearance.setColorScheme(next === 'system' ? null : next);
+          Appearance.setColorScheme?.(next === 'system' ? null : next);
           update.mutate({ theme: next });
         }}
       />
@@ -148,7 +148,7 @@ const rowStyle = {
   paddingHorizontal: 16,
   paddingVertical: 12,
   borderBottomWidth: 1,
-  borderColor: '#eee',
+  borderColor: 'rgba(127,127,127,0.25)',
 };
 
 function ChoiceRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {

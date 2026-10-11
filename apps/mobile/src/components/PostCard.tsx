@@ -136,7 +136,7 @@ function PostCardBase({ post, onOpen }: { post: Post; onOpen?: () => void }) {
         <Pressable
           onPress={() => toggle(1)}
           accessibilityRole="button"
-          accessibilityLabel={`Like, ${post.likeCount} likes`}
+          accessibilityLabel={`Like, ${post.likeCount} ${post.likeCount === 1 ? 'like' : 'likes'}`}
           accessibilityState={{ selected: post.myReaction === 1 }}
         >
           <Text style={{ fontSize: 16 }}>{post.myReaction === 1 ? '❤️' : '🤍'} {post.likeCount}</Text>

@@ -13,6 +13,9 @@ import { upsertMessage } from '../../src/chat/use-chat-events';
 import { ChatMessage, Conversation, conversationTitle, describeSystem, memberName } from '../../src/chat/types';
 import { useTheme } from '../../src/theme';
 
+// A stable empty list: returning a fresh [] from a store selector makes Zustand re-render forever.
+const NO_TYPERS: string[] = [];
+
 const TICKS: Record<string, string> = { sending: '…', sent: '✓', delivered: '✓✓', read: '✓✓', failed: '!' };
 const uuid = () =>
   'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -29,7 +32,7 @@ export default function ChatScreen() {
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingSent = useRef(false);
 
-  const typers = useLive((s) => s.typing[id] ?? []).filter((u) => u !== meId);
+  const typers = useLive((s) => s.typing[id] ?? NO_TYPERS).filter((u) => u !== meId);
   const router = useRouter();
 
   // The conversation (title, members) comes from the list cache, refreshed when the group changes.
@@ -43,6 +46,17 @@ export default function ChatScreen() {
     [conv?.members],
   );
   const headerTitle = conv ? conversationTitle(conv, meId) : (title ?? 'Chat');
+  // Stable options object: expo-router re-applies options whenever their identity changes.
+  const screenOptions = useMemo(
+    () => ({
+      headerShown: true,
+      title: headerTitle,
+      headerRight: () => (
+        <Button title="Info" onPress={() => router.push({ pathname: '/chat/info', params: { id } })} />
+      ),
+    }),
+    [headerTitle, id, router],
+  );
 
   const { data: messages = [] } = useQuery({
     queryKey: ['messages', id],
@@ -145,15 +159,7 @@ export default function ChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}
     >
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: headerTitle,
-          headerRight: () => (
-            <Button title="Info" onPress={() => router.push({ pathname: '/chat/info', params: { id } })} />
-          ),
-        }}
-      />
+      <Stack.Screen options={screenOptions} />
       <FlatList<ChatMessage>
         inverted
         data={messages}

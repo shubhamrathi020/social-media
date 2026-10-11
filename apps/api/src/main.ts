@@ -19,6 +19,12 @@ async function bootstrap() {
     app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
   }
   app.use(helmet());
+  // Browsers only (native apps ignore CORS): the moderator page is same-origin; CORS_ORIGINS lists other web
+  // origins, e.g. the Expo web build used for local testing. Outside production any origin is allowed.
+  const origins = process.env.CORS_ORIGINS?.split(',').map((o) => o.trim()).filter(Boolean);
+  if (origins?.length || process.env.NODE_ENV !== 'production') {
+    app.enableCors({ origin: origins?.length ? origins : true, exposedHeaders: ['X-Request-Id', 'Retry-After'] });
+  }
   app.setGlobalPrefix('v1');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableShutdownHooks();

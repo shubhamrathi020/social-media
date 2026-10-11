@@ -52,7 +52,7 @@ export default function ChatsScreen() {
             accessibilityRole="button"
             accessibilityLabel={`${title}${item.unread ? `, ${item.unread} unread` : ''}${online ? ', online' : ''}`}
             onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.id, title } })}
-            style={{ flexDirection: 'row', padding: 12, gap: 12, borderBottomWidth: 1, borderColor: '#eee' }}
+            style={{ flexDirection: 'row', padding: 12, gap: 12, borderBottomWidth: 1, borderColor: 'rgba(127,127,127,0.25)' }}
           >
             <View>
               <Avatar url={item.type === 'group' ? item.avatarUrl : other?.avatarUrl} name={title} size={48} />
