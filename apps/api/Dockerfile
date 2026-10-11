@@ -35,5 +35,6 @@ COPY --from=build --chown=node:node /out .
 USER node
 EXPOSE 3000
 
-# Apply migrations, then start. DATABASE_URL and the other settings come from the environment.
-CMD ["sh", "-c", "node node_modules/node-pg-migrate/bin/node-pg-migrate.js up -m migrations --migration-file-language sql && node dist/main.js"]
+# Apply migrations, then start. `exec` makes Node process 1 so it receives SIGTERM from `docker stop` / Kubernetes.
+# DATABASE_URL and the other settings come from the environment.
+CMD ["sh", "-c", "node node_modules/node-pg-migrate/bin/node-pg-migrate.js up -m migrations --migration-file-language sql && exec node dist/main.js"]

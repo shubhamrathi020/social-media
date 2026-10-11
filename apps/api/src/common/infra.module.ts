@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Inject, Module, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
 import Redis from 'ioredis';
@@ -25,4 +25,14 @@ export const REDIS = Symbol('REDIS');
   ],
   exports: [PG_POOL, REDIS],
 })
-export class InfraModule {}
+export class InfraModule implements OnApplicationShutdown {
+  constructor(
+    @Inject(PG_POOL) private readonly pg: Pool,
+    @Inject(REDIS) private readonly redis: Redis,
+  ) {}
+
+  /** Runs last, after feature modules stopped using the clients; open sockets would keep the process alive. */
+  async onApplicationShutdown() {
+    await Promise.allSettled([this.pg.end(), this.redis.quit()]);
+  }
+}

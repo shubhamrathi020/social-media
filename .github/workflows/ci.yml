@@ -114,8 +114,11 @@ jobs:
         working-directory: apps/api
         run: |
           pkill -f "node dist/main.js" || true
+          # Wait until the previous instance has really exited so the new one gets the port.
+          for i in $(seq 1 30); do curl -sf localhost:3000/v1/health >/dev/null || break; sleep 1; done
           CONTENT_SCAN=test-colour AUTO_HIDE_REPORTS=3 nohup node dist/main.js > api.log 2>&1 &
           for i in $(seq 1 60); do curl -sf localhost:3000/v1/health && break; sleep 1; done
+          grep -q "Nest application successfully started" api.log
           node scripts/smoke-moderation.mjs
 
       - name: API log on failure
