@@ -6,12 +6,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useChatEvents } from '../../src/chat/use-chat-events';
 import { usePush } from '../../src/lib/push';
 import { notificationsApi, settingsApi } from '../../src/lib/settings';
-import { useT } from '../../src/i18n';
+import { t, useLang } from '../../src/i18n';
 
 export default function TabsLayout() {
   useChatEvents();
   usePush();
-  const t = useT();
 
   const unread = useQuery({
     queryKey: ['unread'],
@@ -25,6 +24,12 @@ export default function TabsLayout() {
     const theme = settings.data?.theme;
     if (theme) Appearance.setColorScheme?.(theme === 'system' ? null : theme);
   }, [settings.data?.theme]);
+
+  // Language follows the account setting (also on other devices); the root layout re-renders on change.
+  const setLang = useLang((s) => s.setLang);
+  useEffect(() => {
+    if (settings.data?.language) setLang(settings.data.language);
+  }, [settings.data?.language, setLang]);
 
   const badge = unread.data?.unread ? Math.min(unread.data.unread, 99) : undefined;
 

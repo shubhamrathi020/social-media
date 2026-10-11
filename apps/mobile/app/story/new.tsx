@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../../src/i18n';
 import { Alert, Button, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Text, TextInput } from '../../src/components/themed';
@@ -26,7 +27,7 @@ export default function NewStory() {
       const f = await pickFromLibrary(['image', 'video']);
       if (f) setFile(f);
     } catch (e) {
-      Alert.alert('Cannot open library', e instanceof Error ? e.message : '');
+      Alert.alert(t('Cannot open library'), e instanceof Error ? e.message : '');
     }
   }
 
@@ -35,10 +36,10 @@ export default function NewStory() {
       const audience = closeOnly ? 'close_friends' : 'friends';
       let mediaId: string | undefined;
       if (file) {
-        setBusy('Uploading…');
-        mediaId = (await uploadMedia(file, kind, (p) => setBusy(`Uploading… ${Math.round(p * 100)}%`))).id;
+        setBusy(t('Uploading…'));
+        mediaId = (await uploadMedia(file, kind, (p) => setBusy(t('Uploading… {p}%', { p: Math.round(p * 100) })))).id;
       }
-      setBusy('Publishing…');
+      setBusy(t('Publishing…'));
       if (isStatus) {
         await storiesApi.createStatus({ mediaId, text: text.trim() || undefined, background: mediaId ? undefined : background, audience });
       } else {
@@ -47,7 +48,7 @@ export default function NewStory() {
       await qc.invalidateQueries({ queryKey: ['stories', kind] });
       router.back();
     } catch (e) {
-      Alert.alert('Could not publish', e instanceof Error ? e.message : '');
+      Alert.alert(t('Could not publish'), e instanceof Error ? e.message : '');
     } finally {
       setBusy(null);
     }
@@ -56,27 +57,27 @@ export default function NewStory() {
   const canPublish = isStatus ? !!file || !!text.trim() : !!file;
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-      <Stack.Screen options={{ headerShown: true, title: isStatus ? 'New status' : 'New story' }} />
+      <Stack.Screen options={{ headerShown: true, title: isStatus ? t('New status') : t('New story') }} />
       {file ? (
         <View style={{ alignItems: 'center', gap: 8 }}>
           <Image source={{ uri: file.uri }} style={{ width: 180, height: 320, borderRadius: 12, backgroundColor: '#ddd' }} />
-          <Button title="Remove" onPress={() => setFile(null)} disabled={!!busy} />
+          <Button title={t('Remove')} onPress={() => setFile(null)} disabled={!!busy} />
         </View>
       ) : (
         isStatus && (
           <View style={{ backgroundColor: background, borderRadius: 12, height: 220, justifyContent: 'center', padding: 16 }}>
             <Text style={{ color: 'white', fontSize: 22, fontWeight: '700', textAlign: 'center' }}>
-              {text || 'Type a status…'}
+              {text || t('Type a status…')}
             </Text>
           </View>
         )
       )}
-      <Button title={file ? 'Change photo / video' : 'Choose photo / video'} onPress={choose} disabled={!!busy} />
+      <Button title={file ? t('Change photo / video') : t('Choose photo / video')} onPress={choose} disabled={!!busy} />
 
       <TextInput
         value={text}
         onChangeText={setText}
-        placeholder={isStatus ? 'Status text' : 'Caption (optional)'}
+        placeholder={isStatus ? t('Status text') : t('Caption (optional)')}
         multiline
         maxLength={700}
         style={{ borderWidth: 1, borderRadius: 8, padding: 12, minHeight: 60 }}
@@ -98,13 +99,13 @@ export default function NewStory() {
         </View>
       )}
       <Button
-        title={closeOnly ? '★ Close friends only (tap to change)' : 'All friends (tap for close friends only)'}
+        title={closeOnly ? t('★ Close friends only (tap to change)') : t('All friends (tap for close friends only)')}
         onPress={() => setCloseOnly((v) => !v)}
         disabled={!!busy}
       />
-      <Text style={{ color: 'gray' }}>Disappears after 24 hours.</Text>
+      <Text style={{ color: 'gray' }}>{t('Disappears after 24 hours.')}</Text>
       {busy && <Text>{busy}</Text>}
-      <Button title="Share" onPress={publish} disabled={!!busy || !canPublish} />
+      <Button title={t('Share')} onPress={publish} disabled={!!busy || !canPublish} />
     </ScrollView>
   );
 }

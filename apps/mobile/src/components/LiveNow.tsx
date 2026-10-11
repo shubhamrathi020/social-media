@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { t } from '../i18n';
 import { FlatList, Pressable, View } from 'react-native';
 import { Text } from './themed';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -30,7 +31,7 @@ export function LiveNow() {
         onPress={() => router.push('/live/host')}
         style={{ backgroundColor: '#dc2626', padding: 10, borderRadius: 8, alignItems: 'center' }}
       >
-        <Text style={{ color: 'white', fontWeight: '700' }}>● Go live</Text>
+        <Text style={{ color: 'white', fontWeight: '700' }}>{t('● Go live')}</Text>
       </Pressable>
       {data.length > 0 && (
         <FlatList

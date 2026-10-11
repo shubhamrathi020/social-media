@@ -1,4 +1,5 @@
 import { Button, FlatList, View } from 'react-native';
+import { t } from '../../src/i18n';
 import { Text } from '../../src/components/themed';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -31,7 +32,7 @@ export default function FeedScreen() {
           <LiveNow />
           <StoryTray kind="story" />
           <View style={{ padding: 10 }}>
-            <Button title="New post" onPress={() => router.push('/post/new')} />
+            <Button title={t('New post')} onPress={() => router.push('/post/new')} />
           </View>
         </View>
       }
@@ -39,7 +40,7 @@ export default function FeedScreen() {
         q.isError ? (
           <ErrorState error={q.error} onRetry={() => q.refetch()} />
         ) : q.isLoading ? null : (
-          <Text style={{ padding: 24 }}>Nothing here yet. Add friends or create a post.</Text>
+          <Text style={{ padding: 24 }}>{t('Nothing here yet. Add friends or create a post.')}</Text>
         )
       }
       renderItem={({ item }) => (

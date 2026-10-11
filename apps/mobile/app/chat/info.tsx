@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../../src/i18n';
 import { ActivityIndicator, Alert, Button, Pressable, ScrollView, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,9 +14,9 @@ import { useTheme } from '../../src/theme';
 import { safetyNumberWith } from '../../src/chat/e2e';
 
 const MUTE_OPTIONS: { label: string; hours: number }[] = [
-  { label: '8 hours', hours: 8 },
-  { label: '1 week', hours: 24 * 7 },
-  { label: '1 year', hours: 24 * 365 },
+  { label: t('8 hours'), hours: 8 },
+  { label: t('1 week'), hours: 24 * 7 },
+  { label: t('1 year'), hours: 24 * 365 },
 ];
 
 /** Conversation details: mute for any chat; members, roles, name and photo for groups. */
@@ -35,8 +36,8 @@ export default function ConversationInfo() {
   if (!conv) {
     return (
       <View style={{ padding: 24 }}>
-        <Stack.Screen options={{ headerShown: true, title: 'Info' }} />
-        <Text>This conversation is no longer available.</Text>
+        <Stack.Screen options={{ headerShown: true, title: t('Info') }} />
+        <Text>{t('This conversation is no longer available.')}</Text>
       </View>
     );
   }
@@ -51,7 +52,7 @@ export default function ConversationInfo() {
       await Promise.all([refetch(), qc.invalidateQueries({ queryKey: ['conversations'] })]);
       after?.();
     } catch (e) {
-      Alert.alert('Something went wrong', e instanceof Error ? e.message : '');
+      Alert.alert(t('Something went wrong'), e instanceof Error ? e.message : '');
     } finally {
       setBusy(false);
     }
@@ -60,14 +61,14 @@ export default function ConversationInfo() {
   const memberActions = (m: ChatMember) => {
     const buttons: Parameters<typeof Alert.alert>[2] = [
       m.role === 'admin'
-        ? { text: 'Remove as admin', onPress: () => run(() => groupsApi.setRole(id, m.id, 'member')) }
-        : { text: 'Make admin', onPress: () => run(() => groupsApi.setRole(id, m.id, 'admin')) },
+        ? { text: t('Remove as admin'), onPress: () => run(() => groupsApi.setRole(id, m.id, 'member')) }
+        : { text: t('Make admin'), onPress: () => run(() => groupsApi.setRole(id, m.id, 'admin')) },
       {
-        text: 'Remove from group',
+        text: t('Remove from group'),
         style: 'destructive',
         onPress: () => run(() => groupsApi.remove(id, m.id)),
       },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('Cancel'), style: 'cancel' },
     ];
     Alert.alert(memberName(m), undefined, buttons);
   };
@@ -83,19 +84,19 @@ export default function ConversationInfo() {
 
   const muted = isMuted(conv);
   const mute = () =>
-    Alert.alert('Mute notifications', undefined, [
+    Alert.alert(t('Mute notifications'), undefined, [
       ...MUTE_OPTIONS.map((o) => ({
         text: o.label,
         onPress: () => run(() => groupsApi.mute(id, new Date(Date.now() + o.hours * 3600e3).toISOString())),
       })),
-      { text: 'Cancel', style: 'cancel' as const },
+      { text: t('Cancel'), style: 'cancel' as const },
     ]);
 
   const leave = () =>
-    Alert.alert('Leave group?', 'You will stop receiving messages and lose access to the history.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('Leave group?'), t('You will stop receiving messages and lose access to the history.'), [
+      { text: t('Cancel'), style: 'cancel' },
       {
-        text: 'Leave',
+        text: t('Leave'),
         style: 'destructive',
         onPress: () =>
           run(
@@ -110,11 +111,11 @@ export default function ConversationInfo() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
-      <Stack.Screen options={{ headerShown: true, title: isGroup ? 'Group info' : 'Chat info' }} />
+      <Stack.Screen options={{ headerShown: true, title: isGroup ? t('Group info') : t('Chat info') }} />
 
       <View style={{ alignItems: 'center', gap: 8 }}>
         <Avatar url={isGroup ? conv.avatarUrl : conv.members.find((m) => m.id !== meId)?.avatarUrl} name={conversationTitle(conv, meId)} size={88} />
-        {isGroup && amAdmin && <Button title="Change photo" onPress={changePhoto} disabled={busy} />}
+        {isGroup && amAdmin && <Button title={t('Change photo')} onPress={changePhoto} disabled={busy} />}
       </View>
 
       {isGroup && amAdmin ? (
@@ -123,11 +124,11 @@ export default function ConversationInfo() {
             value={title ?? conv.title ?? ''}
             onChangeText={setTitle}
             maxLength={60}
-            accessibilityLabel="Group name"
+            accessibilityLabel={t('Group name')}
             style={{ flex: 1, borderWidth: 1, borderRadius: 8, padding: 10 }}
           />
           <Button
-            title="Save"
+            title={t('Save')}
             disabled={busy || !title || title.trim() === conv.title}
             onPress={() => run(() => groupsApi.rename(id, title!.trim()), () => setTitle(null))}
           />
@@ -138,20 +139,20 @@ export default function ConversationInfo() {
 
       {conv.e2e ? (
         <View style={{ backgroundColor: c.subtle, borderRadius: 10, padding: 12, gap: 6 }}>
-          <Text style={{ fontWeight: '700' }}>🔒 End-to-end encrypted</Text>
+          <Text style={{ fontWeight: '700' }}>{t('🔒 End-to-end encrypted')}</Text>
           <Text style={{ color: c.muted }}>
-            Messages and photos in this chat can only be read by the people in it. Not even the app's servers can read them.
+            {t('Messages and photos in this chat can only be read by the people in it. Not even the app\'s servers can read them.')}
           </Text>
           {!isGroup && <SafetyNumber meId={meId} otherId={conv.members.find((m) => m.id !== meId)?.id} />}
         </View>
       ) : (
         <Text style={{ color: c.muted }}>
-          This chat is not end-to-end encrypted because someone in it uses an older version of the app.
+          {t('This chat is not end-to-end encrypted because someone in it uses an older version of the app.')}
         </Text>
       )}
 
       <Button
-        title={muted ? `Unmute (muted until ${new Date(conv.mutedUntil!).toLocaleString()})` : 'Mute notifications'}
+        title={muted ? t('Unmute (muted until {time})', { time: new Date(conv.mutedUntil!).toLocaleString() }) : t('Mute notifications')}
         onPress={muted ? () => run(() => groupsApi.mute(id, null)) : mute}
         disabled={busy}
       />
@@ -159,7 +160,7 @@ export default function ConversationInfo() {
       {isGroup && (
         <View style={{ gap: 4 }}>
           <Text accessibilityRole="header" style={{ fontWeight: '700', color: c.muted }}>
-            {conv.members.length} MEMBERS
+            {t('{n} MEMBERS', { n: conv.members.length })}
           </Text>
           {conv.members.map((m) => (
             <Pressable
@@ -171,21 +172,21 @@ export default function ConversationInfo() {
               style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 }}
             >
               <Avatar url={m.avatarUrl} name={memberName(m)} size={36} />
-              <Text style={{ flex: 1, fontSize: 16 }}>{m.id === meId ? 'You' : memberName(m)}</Text>
-              {m.role === 'admin' && <Text style={{ color: c.primary, fontSize: 12 }}>Admin</Text>}
+              <Text style={{ flex: 1, fontSize: 16 }}>{m.id === meId ? t('You') : memberName(m)}</Text>
+              {m.role === 'admin' && <Text style={{ color: c.primary, fontSize: 12 }}>{t('Admin')}</Text>}
             </Pressable>
           ))}
 
           {amAdmin &&
             (adding === null ? (
-              <Button title="Add people" onPress={() => setAdding([])} disabled={busy} />
+              <Button title={t('Add people')} onPress={() => setAdding([])} disabled={busy} />
             ) : (
               <View style={{ borderTopWidth: 1, borderColor: c.border, paddingTop: 8 }}>
                 <FriendPicker selected={adding} onChange={setAdding} exclude={conv.members.map((m) => m.id)} />
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Button title="Cancel" onPress={() => setAdding(null)} />
+                  <Button title={t('Cancel')} onPress={() => setAdding(null)} />
                   <Button
-                    title={`Add ${adding.length || ''}`.trim()}
+                    title={adding.length ? t('Add {n}', { n: adding.length }) : t('Add')}
                     disabled={busy || adding.length === 0}
                     onPress={() => run(() => groupsApi.addMembers(id, adding), () => setAdding(null))}
                   />
@@ -194,7 +195,7 @@ export default function ConversationInfo() {
             ))}
 
           <View style={{ marginTop: 16 }}>
-            <Button title="Leave group" color={c.danger} onPress={leave} disabled={busy} />
+            <Button title={t('Leave group')} color={c.danger} onPress={leave} disabled={busy} />
           </View>
         </View>
       )}
@@ -213,7 +214,7 @@ function SafetyNumber({ meId, otherId }: { meId: string; otherId?: string }) {
   if (!data) return null;
   return (
     <View style={{ gap: 4 }}>
-      <Text style={{ color: c.muted }}>Security code (compare with your friend's phone):</Text>
+      <Text style={{ color: c.muted }}>{t("Security code (compare with your friend's phone):")}</Text>
       <Text selectable style={{ fontFamily: 'monospace', fontSize: 15, letterSpacing: 1 }} accessibilityLabel={`Security code ${data}`}>
         {data}
       </Text>

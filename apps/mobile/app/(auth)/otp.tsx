@@ -3,10 +3,9 @@ import { Button, View } from 'react-native';
 import { Text, TextInput } from '../../src/components/themed';
 import { useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../src/state/auth';
-import { useT } from '../../src/i18n';
+import { t } from '../../src/i18n';
 
 export default function OtpScreen() {
-  const t = useT();
   const { phone } = useLocalSearchParams<{ phone: string }>();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +19,7 @@ export default function OtpScreen() {
       await verifyOtp(phone, code);
       // AuthGate redirects once status becomes signedIn.
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong');
+      setError(e instanceof Error ? e.message : t(t('Something went wrong')));
     } finally {
       setBusy(false);
     }

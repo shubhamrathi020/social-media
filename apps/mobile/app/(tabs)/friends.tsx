@@ -1,4 +1,5 @@
 import { Alert, Button, SectionList, View } from 'react-native';
+import { t } from '../../src/i18n';
 import { Text } from '../../src/components/themed';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -24,21 +25,19 @@ export default function FriendsScreen() {
   const myPhone = useAuth((s) => s.me?.phone ?? '');
 
   const findFromContacts = () =>
-    Alert.alert(
-      'Find friends from contacts',
-      'Your contacts\' phone numbers are sent securely to match people who use the app. The numbers are not stored; only a keyed fingerprint is kept so new matches can be suggested later.',
+    Alert.alert(t('Find friends from contacts'), t('Your contacts\' phone numbers are sent securely to match people who use the app. The numbers are not stored; only a keyed fingerprint is kept so new matches can be suggested later.'),
       [
-        { text: 'Not now', style: 'cancel' },
+        { text: t('Not now'), style: 'cancel' },
         {
-          text: 'Continue',
+          text: t('Continue'),
           onPress: async () => {
             try {
               const r = await syncContacts(myPhone);
-              if (!r) return Alert.alert('Contacts access was not allowed');
+              if (!r) return Alert.alert(t('Contacts access was not allowed'));
               await qc.invalidateQueries({ queryKey: ['suggestions'] });
-              Alert.alert('Done', r.matched ? `${r.matched} of your contacts use the app.` : 'None of your contacts use the app yet.');
+              Alert.alert(t('Done'), r.matched ? t('{n} of your contacts use the app.', { n: r.matched }) : t('None of your contacts use the app yet.'));
             } catch (e) {
-              Alert.alert('Could not read contacts', e instanceof Error ? e.message : '');
+              Alert.alert(t('Could not read contacts'), e instanceof Error ? e.message : '');
             }
           },
         },
@@ -49,13 +48,13 @@ export default function FriendsScreen() {
   const run = useMutation({
     mutationFn: (fn: () => Promise<unknown>) => fn(),
     onSuccess: refresh,
-    onError: (e) => Alert.alert('Error', e instanceof Error ? e.message : 'Something went wrong'),
+    onError: (e) => Alert.alert(t('Error'), e instanceof Error ? e.message : 'Something went wrong'),
   });
 
   const sections = [
-    { title: 'Requests', data: (incoming.data ?? []).map((d): Item => ({ kind: 'request', data: d })) },
-    { title: 'People you may know', data: (suggestions.data ?? []).map((d): Item => ({ kind: 'suggestion', data: d })) },
-    { title: 'Friends', data: (friends.data ?? []).map((d): Item => ({ kind: 'friend', data: d })) },
+    { title: t('Requests'), data: (incoming.data ?? []).map((d): Item => ({ kind: 'request', data: d })) },
+    { title: t('People you may know'), data: (suggestions.data ?? []).map((d): Item => ({ kind: 'suggestion', data: d })) },
+    { title: t('Friends'), data: (friends.data ?? []).map((d): Item => ({ kind: 'friend', data: d })) },
   ].filter((s) => s.data.length > 0);
 
   return (
@@ -66,10 +65,10 @@ export default function FriendsScreen() {
       onRefresh={refresh}
       ListHeaderComponent={
         <View style={{ padding: 10 }}>
-          <Button title="Find friends from contacts" onPress={findFromContacts} />
+          <Button title={t('Find friends from contacts')} onPress={findFromContacts} />
         </View>
       }
-      ListEmptyComponent={<Text style={{ padding: 24 }}>No friends yet. Use Search to find people.</Text>}
+      ListEmptyComponent={<Text style={{ padding: 24 }}>{t('No friends yet. Use Search to find people.')}</Text>}
       renderSectionHeader={({ section }) => (
         <Text accessibilityRole="header" style={{ fontWeight: '700', padding: 12, backgroundColor: c.subtle }}>{section.title}</Text>
       )}
@@ -77,9 +76,9 @@ export default function FriendsScreen() {
         if (item.kind === 'request') {
           const r = item.data;
           return (
-            <Row avatar={r.user.avatarUrl} title={nameOf(r.user)} subtitle="wants to be friends">
-              <Button title="Accept" onPress={() => run.mutate(() => friendsApi.accept(r.id))} />
-              <Button title="Decline" color="gray" onPress={() => run.mutate(() => friendsApi.decline(r.id))} />
+            <Row avatar={r.user.avatarUrl} title={nameOf(r.user)} subtitle={t('wants to be friends')}>
+              <Button title={t('Accept')} onPress={() => run.mutate(() => friendsApi.accept(r.id))} />
+              <Button title={t('Decline')} color="gray" onPress={() => run.mutate(() => friendsApi.decline(r.id))} />
             </Row>
           );
         }
@@ -89,9 +88,9 @@ export default function FriendsScreen() {
             <Row
               avatar={s.avatarUrl}
               title={nameOf(s)}
-              subtitle={s.reason === 'mutual' ? `${s.mutualCount} mutual friends` : 'In your contacts'}
+              subtitle={s.reason === 'mutual' ? t('{n} mutual friends', { n: s.mutualCount }) : t('In your contacts')}
             >
-              <Button title="Add" onPress={() => run.mutate(() => friendsApi.sendRequest(s.id))} />
+              <Button title={t('Add')} onPress={() => run.mutate(() => friendsApi.sendRequest(s.id))} />
               <Button title="✕" color="gray" onPress={() => run.mutate(() => friendsApi.dismiss(s.id))} />
             </Row>
           );
@@ -100,18 +99,18 @@ export default function FriendsScreen() {
         return (
           <Row avatar={f.avatarUrl} title={`${f.isCloseFriend ? '★ ' : ''}${nameOf(f)}`} subtitle={f.username ? `@${f.username}` : ''}>
             <Button
-              title="Message"
+              title={t('Message')}
               onPress={async () => {
                 try {
                   const c = await api<{ id: string }>('/conversations', json({ userId: f.id }));
                   router.push({ pathname: '/chat/[id]', params: { id: c.id, title: nameOf(f) } });
                 } catch (e) {
-                  Alert.alert('Cannot message', e instanceof Error ? e.message : '');
+                  Alert.alert(t('Cannot message'), e instanceof Error ? e.message : '');
                 }
               }}
             />
             <Button
-              title={f.isCloseFriend ? 'Remove close' : 'Close friend'}
+              title={f.isCloseFriend ? t('Remove close') : t('Close friend')}
               onPress={() =>
                 run.mutate(() =>
                   f.isCloseFriend ? friendsApi.removeCloseFriend(f.id) : friendsApi.addCloseFriend(f.id),
@@ -119,12 +118,12 @@ export default function FriendsScreen() {
               }
             />
             <Button
-              title="Unfriend"
+              title={t('Unfriend')}
               color="crimson"
               onPress={() =>
-                Alert.alert('Unfriend', `Remove ${nameOf(f)}?`, [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Unfriend', style: 'destructive', onPress: () => run.mutate(() => friendsApi.unfriend(f.id)) },
+                Alert.alert(t('Unfriend'), t('Remove {name}?', { name: nameOf(f) }), [
+                  { text: t('Cancel'), style: 'cancel' },
+                  { text: t('Unfriend'), style: 'destructive', onPress: () => run.mutate(() => friendsApi.unfriend(f.id)) },
                 ])
               }
             />

@@ -1,4 +1,5 @@
 import { Pressable, View } from 'react-native';
+import { t } from '../i18n';
 import { useQuery } from '@tanstack/react-query';
 import { Avatar } from './Avatar';
 import { Text } from './themed';
@@ -19,8 +20,8 @@ export function FriendPicker({
   const { data = [], isLoading } = useQuery({ queryKey: ['friends'], queryFn: friendsApi.friends });
   const options = data.filter((f) => !exclude.includes(f.id));
 
-  if (isLoading) return <Text style={{ color: c.muted, padding: 12 }}>Loading friends…</Text>;
-  if (options.length === 0) return <Text style={{ color: c.muted, padding: 12 }}>No friends to add.</Text>;
+  if (isLoading) return <Text style={{ color: c.muted, padding: 12 }}>{t('Loading friends…')}</Text>;
+  if (options.length === 0) return <Text style={{ color: c.muted, padding: 12 }}>{t('No friends to add.')}</Text>;
 
   return (
     <View>

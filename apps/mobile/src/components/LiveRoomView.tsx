@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { t } from '../i18n';
 import { FlatList, Pressable, View } from 'react-native';
 import { Text, TextInput } from './themed';
 import {
@@ -22,7 +23,7 @@ function Stage() {
   if (!first) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ color: 'white' }}>Waiting for video…</Text>
+        <Text style={{ color: 'white' }}>{t('Waiting for video…')}</Text>
       </View>
     );
   }
@@ -99,7 +100,7 @@ export function LiveRoomView({ liveId, url, token, isHost, initialChat, onEnded,
 
       <View style={{ position: 'absolute', top: 48, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={{ color: 'white', fontWeight: '700', backgroundColor: '#dc2626', paddingHorizontal: 8, borderRadius: 4 }}>
-          LIVE · 👁 {viewers} · ❤️ {hearts}
+          {t('LIVE · 👁 {v} · ❤️ {h}', { v: viewers, h: hearts })}
         </Text>
         {headerRight}
       </View>
@@ -121,14 +122,14 @@ export function LiveRoomView({ liveId, url, token, isHost, initialChat, onEnded,
             value={text}
             onChangeText={setText}
             onSubmitEditing={send}
-            placeholder="Say something…"
+            placeholder={t('Say something…')}
             placeholderTextColor="#ccc"
             maxLength={200}
             returnKeyType="send"
             style={{ flex: 1, color: 'white', borderWidth: 1, borderColor: '#888', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 }}
           />
           {!isHost && (
-            <Pressable onPress={() => emitAck('live:heart', { liveId })} accessibilityRole="button" accessibilityLabel="Send a heart">
+            <Pressable onPress={() => emitAck('live:heart', { liveId })} accessibilityRole="button" accessibilityLabel={t('Send a heart')}>
               <Text style={{ fontSize: 28 }}>❤️</Text>
             </Pressable>
           )}

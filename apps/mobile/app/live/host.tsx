@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { t } from '../../src/i18n';
 import { Alert, Button, View } from 'react-native';
 import { Text, TextInput } from '../../src/components/themed';
 import { Stack, useRouter } from 'expo-router';
@@ -38,7 +39,7 @@ export default function GoLive() {
       // Friends are notified once the host's camera is publishing; the room view connects on mount.
       setTimeout(() => liveApi.start(s.id).catch(() => undefined), 2500);
     } catch (e) {
-      Alert.alert('Could not go live', e instanceof Error ? e.message : '');
+      Alert.alert(t('Could not go live'), e instanceof Error ? e.message : '');
     } finally {
       setBusy(false);
     }
@@ -64,7 +65,7 @@ export default function GoLive() {
           initialChat={[]}
           onEnded={() => router.back()}
           onLeave={() => undefined}
-          headerRight={<Button title="End" color="#dc2626" onPress={end} />}
+          headerRight={<Button title={t('End')} color="#dc2626" onPress={end} />}
         />
       </>
     );
@@ -72,20 +73,20 @@ export default function GoLive() {
 
   return (
     <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: 'center' }}>
-      <Stack.Screen options={{ headerShown: true, title: 'Go live' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('Go live') }} />
       <TextInput
         value={title}
         onChangeText={setTitle}
-        placeholder="Add a title"
+        placeholder={t('Add a title')}
         maxLength={100}
         style={{ borderWidth: 1, borderRadius: 8, padding: 12 }}
       />
       <Button
-        title={closeOnly ? '★ Close friends only (tap to change)' : 'All friends (tap for close friends only)'}
+        title={closeOnly ? t('★ Close friends only (tap to change)') : t('All friends (tap for close friends only)')}
         onPress={() => setCloseOnly((v) => !v)}
       />
-      <Text style={{ color: 'gray' }}>Your camera and microphone start when you go live.</Text>
-      <Button title={busy ? 'Starting…' : 'Go live'} onPress={goLive} disabled={busy} />
+      <Text style={{ color: 'gray' }}>{t('Your camera and microphone start when you go live.')}</Text>
+      <Button title={busy ? t('Starting…') : t('Go live')} onPress={goLive} disabled={busy} />
     </View>
   );
 }

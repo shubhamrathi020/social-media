@@ -1,4 +1,5 @@
 import { Button, FlatList, Pressable, View } from 'react-native';
+import { t } from '../../src/i18n';
 import { Text } from '../../src/components/themed';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -31,7 +32,7 @@ export default function ChatsScreen() {
         <View>
           <StoryTray kind="status" />
           <View style={{ paddingHorizontal: 10, paddingBottom: 6 }}>
-            <Button title="New group" onPress={() => router.push('/chat/new-group')} />
+            <Button title={t('New group')} onPress={() => router.push('/chat/new-group')} />
           </View>
         </View>
       }
@@ -39,7 +40,7 @@ export default function ChatsScreen() {
         error ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : (
-          <Text style={{ padding: 24 }}>No chats yet. Open the Friends tab and tap Message.</Text>
+          <Text style={{ padding: 24 }}>{t('No chats yet. Open the Friends tab and tap Message.')}</Text>
         )
       }
       renderItem={({ item }) => {
@@ -72,7 +73,7 @@ export default function ChatsScreen() {
               </Text>
               <Text numberOfLines={1} style={{ color: someoneTyping ? '#22c55e' : 'gray' }}>
                 {someoneTyping
-                  ? 'typing…'
+                  ? t('typing…')
                   : previewOf(item.lastMessage, new Map(item.members.map((m) => [m.id, memberName(m)])), meId)}
               </Text>
             </View>

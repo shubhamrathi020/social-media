@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { t } from '../../src/i18n';
 import { FlatList, Pressable, View } from 'react-native';
 import { Text } from '../../src/components/themed';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,12 +10,12 @@ import { Notification, notificationsApi } from '../../src/lib/settings';
 import { useTheme } from '../../src/theme';
 
 const TEXT: Record<Notification['type'], (n: Notification) => string> = {
-  friend_request: () => 'sent you a friend request',
-  friend_accepted: () => 'accepted your friend request',
-  post_liked: () => 'liked your post',
-  comment: (n) => `commented: ${n.data.preview ?? ''}`,
-  comment_reply: (n) => `replied: ${n.data.preview ?? ''}`,
-  live_started: (n) => `is live${n.data.title ? `: ${n.data.title}` : ''}`,
+  friend_request: () => t('sent you a friend request'),
+  friend_accepted: () => t('accepted your friend request'),
+  post_liked: () => t('liked your post'),
+  comment: (n) => t('commented: {text}', { text: n.data.preview ?? '' }),
+  comment_reply: (n) => t('replied: {text}', { text: n.data.preview ?? '' }),
+  live_started: (n) => (n.data.title ? t('is live: {title}', { title: n.data.title }) : t('is live')),
 };
 
 export default function Alerts() {
@@ -61,7 +62,7 @@ export default function Alerts() {
       refreshing={q.isRefetching}
       onRefresh={() => q.refetch()}
       onEndReached={() => q.hasNextPage && !q.isFetchingNextPage && q.fetchNextPage()}
-      ListEmptyComponent={q.isLoading ? null : <Text style={{ padding: 24, color: 'gray' }}>No notifications yet.</Text>}
+      ListEmptyComponent={q.isLoading ? null : <Text style={{ padding: 24, color: 'gray' }}>{t('No notifications yet.')}</Text>}
       renderItem={({ item }) => (
         <Pressable
           onPress={() => open(item)}
@@ -73,7 +74,7 @@ export default function Alerts() {
           <Avatar url={item.actor?.avatarUrl} name={item.actor?.displayName ?? item.actor?.username} />
           <View style={{ flex: 1 }}>
             <Text>
-              <Text style={{ fontWeight: '700' }}>{item.actor?.displayName ?? item.actor?.username ?? 'Someone'} </Text>
+              <Text style={{ fontWeight: '700' }}>{item.actor?.displayName ?? item.actor?.username ?? t('Someone')} </Text>
               {TEXT[item.type](item)}
             </Text>
             <Text style={{ color: 'gray', fontSize: 12 }}>{new Date(item.createdAt).toLocaleString()}</Text>

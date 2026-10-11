@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Audience, Settings, SettingsPatch, settingsApi } from '../../src/lib/settings';
 import { useAuth } from '../../src/state/auth';
 import { exportMyData } from '../../src/lib/export';
-import { LANGUAGES, useT } from '../../src/i18n';
+import { LANGUAGES, t, useLang } from '../../src/i18n';
 import { forgetContacts } from '../../src/lib/contacts';
 
 const AUDIENCES: Audience[] = ['everyone', 'friends', 'nobody'];
@@ -16,13 +16,15 @@ export default function SettingsScreen() {
   const router = useRouter();
   const qc = useQueryClient();
   const logout = useAuth((s) => s.logout);
-  const t = useT();
 
   const { data } = useQuery({ queryKey: ['settings'], queryFn: settingsApi.get });
   const update = useMutation({
     mutationFn: (patch: SettingsPatch) => settingsApi.update(patch),
-    onSuccess: (s) => qc.setQueryData(['settings'], s),
-    onError: (e) => Alert.alert('Could not save', e instanceof Error ? e.message : ''),
+    onSuccess: (s) => {
+      qc.setQueryData(['settings'], s);
+      useLang.getState().setLang(s.language); // re-renders the app in the new language
+    },
+    onError: (e) => Alert.alert(t('Could not save'), e instanceof Error ? e.message : ''),
   });
 
   if (!data) return null;
@@ -30,20 +32,18 @@ export default function SettingsScreen() {
   const cycle = <T,>(list: T[], current: T) => list[(list.indexOf(current) + 1) % list.length];
 
   const deleteAccount = () =>
-    Alert.alert(
-      'Delete account?',
-      'Your profile, posts and comments disappear immediately and you are removed from friends and groups. Everything, including photos and messages, is permanently erased within 30 days. This cannot be undone.',
+    Alert.alert(t('Delete account?'), t('Your profile, posts and comments disappear immediately and you are removed from friends and groups. Everything, including photos and messages, is permanently erased within 30 days. This cannot be undone.'),
       [
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('Cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('Delete'),
         style: 'destructive',
         onPress: async () => {
           try {
             await settingsApi.deleteAccount();
             await logout();
           } catch (e) {
-            Alert.alert('Could not delete', e instanceof Error ? e.message : '');
+            Alert.alert(t('Could not delete'), e instanceof Error ? e.message : '');
           }
         },
       },
@@ -119,14 +119,14 @@ export default function SettingsScreen() {
       <LinkRow label={t('Log out')} onPress={logout} />
       <LinkRow
         label={t('Download my data')}
-        onPress={() => exportMyData().catch((e) => Alert.alert('Could not export', e instanceof Error ? e.message : ''))}
+        onPress={() => exportMyData().catch((e) => Alert.alert(t('Could not export'), e instanceof Error ? e.message : ''))}
       />
       <LinkRow
         label={t('Forget my uploaded contacts')}
         onPress={() =>
           forgetContacts()
-            .then(() => Alert.alert('Done', 'Your uploaded contacts were deleted.'))
-            .catch((e) => Alert.alert('Could not delete', e instanceof Error ? e.message : ''))
+            .then(() => Alert.alert(t('Done'), t('Your uploaded contacts were deleted.')))
+            .catch((e) => Alert.alert(t('Could not delete'), e instanceof Error ? e.message : ''))
         }
       />
       <LinkRow label={t('Delete account')} danger onPress={deleteAccount} />

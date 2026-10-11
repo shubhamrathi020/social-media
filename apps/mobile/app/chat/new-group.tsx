@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../../src/i18n';
 import { Alert, Button, ScrollView } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -22,7 +23,7 @@ export default function NewGroup() {
       await qc.invalidateQueries({ queryKey: ['conversations'] });
       router.replace({ pathname: '/chat/[id]', params: { id: g.id, title: g.title ?? 'Group' } });
     } catch (e) {
-      Alert.alert('Could not create group', e instanceof Error ? e.message : '');
+      Alert.alert(t('Could not create group'), e instanceof Error ? e.message : '');
     } finally {
       setBusy(false);
     }
@@ -31,20 +32,20 @@ export default function NewGroup() {
   const ready = title.trim().length > 0 && members.length >= 2;
   return (
     <ScrollView contentContainerStyle={{ paddingVertical: 12 }}>
-      <Stack.Screen options={{ headerShown: true, title: 'New group' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('New group') }} />
       <TextInput
         value={title}
         onChangeText={setTitle}
-        placeholder="Group name"
+        placeholder={t('Group name')}
         maxLength={60}
-        accessibilityLabel="Group name"
+        accessibilityLabel={t('Group name')}
         style={{ borderWidth: 1, borderRadius: 8, padding: 12, marginHorizontal: 12 }}
       />
       <Text style={{ color: c.muted, padding: 12 }}>
-        Pick at least two friends ({members.length} selected)
+        {t('Pick at least two friends ({n} selected)', { n: members.length })}
       </Text>
       <FriendPicker selected={members} onChange={setMembers} />
-      <Button title={busy ? 'Creating…' : 'Create group'} onPress={create} disabled={!ready || busy} />
+      <Button title={busy ? t('Creating…') : t('Create group')} onPress={create} disabled={!ready || busy} />
     </ScrollView>
   );
 }

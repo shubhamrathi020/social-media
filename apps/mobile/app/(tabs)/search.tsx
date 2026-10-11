@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { t } from '../../src/i18n';
 import { Alert, Button, FlatList, View } from 'react-native';
 import { Text, TextInput } from '../../src/components/themed';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -38,7 +39,7 @@ export default function SearchScreen() {
   const add = useMutation({
     mutationFn: (id: string) => friendsApi.sendRequest(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['search'] }),
-    onError: (e) => Alert.alert('Error', e instanceof Error ? e.message : 'Something went wrong'),
+    onError: (e) => Alert.alert(t('Error'), e instanceof Error ? e.message : 'Something went wrong'),
   });
 
   return (
@@ -46,7 +47,7 @@ export default function SearchScreen() {
       <TextInput
         value={q}
         onChangeText={setQ}
-        placeholder="Search by username or name"
+        placeholder={t('Search by username or name')}
         autoCapitalize="none"
         style={{ borderWidth: 1, borderRadius: 8, padding: 12 }}
       />
@@ -54,7 +55,7 @@ export default function SearchScreen() {
         data={results.data ?? []}
         keyExtractor={(u) => u.id}
         ListEmptyComponent={
-          debounced.length >= 2 && !results.isFetching ? <Text style={{ padding: 12 }}>No results</Text> : null
+          debounced.length >= 2 && !results.isFetching ? <Text style={{ padding: 12 }}>{t('No results')}</Text> : null
         }
         renderItem={({ item }) => (
           <View style={{ paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -64,9 +65,9 @@ export default function SearchScreen() {
               {!!item.username && <Text style={{ color: 'gray' }}>@{item.username}</Text>}
             </View>
             {item.relationship === 'none' ? (
-              <Button title="Add friend" onPress={() => add.mutate(item.id)} />
+              <Button title={t('Add friend')} onPress={() => add.mutate(item.id)} />
             ) : (
-              <Text style={{ color: 'gray' }}>{LABEL[item.relationship]}</Text>
+              <Text style={{ color: 'gray' }}>{t(LABEL[item.relationship])}</Text>
             )}
           </View>
         )}

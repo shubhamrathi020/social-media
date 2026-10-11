@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { t } from '../../src/i18n';
 import { Alert, Button, FlatList, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Text, TextInput } from '../../src/components/themed';
@@ -54,7 +55,7 @@ export default function ChatScreen() {
       headerShown: true,
       title: headerTitle,
       headerRight: () => (
-        <Button title="Info" onPress={() => router.push({ pathname: '/chat/info', params: { id } })} />
+        <Button title={t('Info')} onPress={() => router.push({ pathname: '/chat/info', params: { id } })} />
       ),
     }),
     [headerTitle, id, router],
@@ -117,7 +118,7 @@ export default function ChatScreen() {
       const media = await uploadMedia(file, 'chat');
       await sendMessage('image', { mediaId: media.id });
     } catch (e) {
-      Alert.alert('Could not send photo', e instanceof Error ? e.message : '');
+      Alert.alert(t('Could not send photo'), e instanceof Error ? e.message : '');
     }
   }
 
@@ -142,11 +143,11 @@ export default function ChatScreen() {
   function onLongPress(m: ChatMessage) {
     if (m.deleted || m.type === 'system' || m.id.startsWith('local-')) return;
     const buttons: Parameters<typeof Alert.alert>[2] = [
-      { text: 'Delete for me', onPress: () => remove(m, 'me') },
+      { text: t('Delete for me'), onPress: () => remove(m, 'me') },
     ];
-    if (m.senderId === meId) buttons.push({ text: 'Delete for everyone', style: 'destructive', onPress: () => remove(m, 'everyone') });
-    buttons.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert('Message', undefined, buttons);
+    if (m.senderId === meId) buttons.push({ text: t('Delete for everyone'), style: 'destructive', onPress: () => remove(m, 'everyone') });
+    buttons.push({ text: t('Cancel'), style: 'cancel' });
+    Alert.alert(t('Message'), undefined, buttons);
   }
   async function remove(m: ChatMessage, scope: 'me' | 'everyone') {
     try {
@@ -157,7 +158,7 @@ export default function ChatScreen() {
           : cur?.map((x) => (x.id === m.id ? { ...x, deleted: true, payload: {}, media: undefined } : x)),
       );
     } catch (e) {
-      Alert.alert('Could not delete', e instanceof Error ? e.message : '');
+      Alert.alert(t('Could not delete'), e instanceof Error ? e.message : '');
     }
   }
 
@@ -194,16 +195,16 @@ export default function ChatScreen() {
             >
               {showSender && (
                 <Text style={{ fontSize: 12, fontWeight: '700', color: c.primary, marginBottom: 2 }}>
-                  {names.get(item.senderId) ?? 'Former member'}
+                  {names.get(item.senderId) ?? t('Former member')}
                 </Text>
               )}
               {item.deleted ? (
-                <Text style={{ fontStyle: 'italic', color: mine ? '#dbeafe' : 'gray' }}>Message deleted</Text>
+                <Text style={{ fontStyle: 'italic', color: mine ? '#dbeafe' : 'gray' }}>{t('Message deleted')}</Text>
               ) : (
                 <>
                   {item.undecryptable && (
                     <Text style={{ fontStyle: 'italic', color: mine ? '#dbeafe' : c.muted }}>
-                      🔒 Sent before you signed in on this device
+                      {t('🔒 Sent before you signed in on this device')}
                     </Text>
                   )}
                   {item.encrypted && item.type === 'image' && !item.undecryptable && <EncryptedImage message={item} />}
@@ -212,7 +213,7 @@ export default function ChatScreen() {
                       source={{ uri: item.media.thumbUrl }}
                       style={{ width: 200, height: 150, borderRadius: 8, marginBottom: 4 }}
                       cachePolicy="memory-disk"
-                      accessibilityLabel="Photo"
+                      accessibilityLabel={t('Photo')}
                     />
                   )}
                   {!!(item.payload.text ?? item.payload.caption) && (
@@ -236,18 +237,18 @@ export default function ChatScreen() {
           );
         }}
       />
-      {typers.length > 0 && <Text style={{ paddingHorizontal: 16, color: 'gray' }}>typing…</Text>}
+      {typers.length > 0 && <Text style={{ paddingHorizontal: 16, color: 'gray' }}>{t('typing…')}</Text>}
       <View style={{ flexDirection: 'row', padding: 8, gap: 8, alignItems: 'center', borderTopWidth: 1, borderColor: c.border }}>
-        <Pressable onPress={sendPhoto} accessibilityRole="button" accessibilityLabel="Send a photo"><Text style={{ fontSize: 24 }}>📷</Text></Pressable>
+        <Pressable onPress={sendPhoto} accessibilityRole="button" accessibilityLabel={t('Send a photo')}><Text style={{ fontSize: 24 }}>📷</Text></Pressable>
         <TextInput
           value={text}
           onChangeText={onChange}
-          placeholder={conv?.e2e ? 'Encrypted message' : 'Message'}
+          placeholder={conv?.e2e ? t('Encrypted message') : t('Message')}
           multiline
           style={{ flex: 1, borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, maxHeight: 120 }}
         />
-        <Pressable onPress={sendText} disabled={!text.trim()} accessibilityRole="button" accessibilityLabel="Send message">
-          <Text style={{ fontSize: 16, fontWeight: '700', color: text.trim() ? '#2563eb' : '#aaa' }}>Send</Text>
+        <Pressable onPress={sendText} disabled={!text.trim()} accessibilityRole="button" accessibilityLabel={t('Send message')}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: text.trim() ? '#2563eb' : '#aaa' }}>{t('Send')}</Text>
         </Pressable>
       </View>
     </KeyboardAvoidingView>

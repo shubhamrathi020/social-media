@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../../src/i18n';
 import { Alert, Button, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Text, TextInput } from '../../src/components/themed';
@@ -9,9 +10,9 @@ import { PickedFile, pickMany, uploadMedia } from '../../src/lib/media';
 import { Audience, postsApi } from '../../src/lib/posts';
 
 const AUDIENCES: { value: Audience; label: string }[] = [
-  { value: 'friends', label: 'Friends' },
-  { value: 'close_friends', label: '★ Close friends' },
-  { value: 'public', label: 'Public' },
+  { value: 'friends', label: t('Friends') },
+  { value: 'close_friends', label: t('★ Close friends') },
+  { value: 'public', label: t('Public') },
 ];
 
 export default function NewPost() {
@@ -27,7 +28,7 @@ export default function NewPost() {
       const picked = await pickMany(MAX_POST_SLIDES - files.length);
       setFiles((cur) => [...cur, ...picked].slice(0, MAX_POST_SLIDES));
     } catch (e) {
-      Alert.alert('Cannot open library', e instanceof Error ? e.message : '');
+      Alert.alert(t('Cannot open library'), e instanceof Error ? e.message : '');
     }
   }
 
@@ -35,18 +36,18 @@ export default function NewPost() {
     try {
       const mediaIds: string[] = [];
       for (let i = 0; i < files.length; i++) {
-        setProgress(`Uploading ${i + 1} of ${files.length}…`);
+        setProgress(t('Uploading {i} of {n}…', { i: i + 1, n: files.length }));
         const m = await uploadMedia(files[i], 'post', (p) =>
-          setProgress(`Uploading ${i + 1} of ${files.length}… ${Math.round(p * 100)}%`),
+          setProgress(t('Uploading {i} of {n}… {p}%', { i: i + 1, n: files.length, p: Math.round(p * 100) })),
         );
         mediaIds.push(m.id);
       }
-      setProgress('Publishing…');
+      setProgress(t('Publishing…'));
       await postsApi.create({ caption: caption.trim() || undefined, audience, mediaIds });
       await qc.invalidateQueries({ queryKey: ['feed'] });
       router.back();
     } catch (e) {
-      Alert.alert('Could not publish', e instanceof Error ? e.message : '');
+      Alert.alert(t('Could not publish'), e instanceof Error ? e.message : '');
     } finally {
       setProgress(null);
     }
@@ -55,25 +56,25 @@ export default function NewPost() {
   const busy = progress !== null;
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-      <Stack.Screen options={{ headerShown: true, title: 'New post' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('New post') }} />
       <Text style={{ fontWeight: '600' }}>
-        Slides ({files.length}/{MAX_POST_SLIDES})
+        {t('Slides ({n}/{max})', { n: files.length, max: MAX_POST_SLIDES })}
       </Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {files.map((f, i) => (
           <View key={f.uri} style={{ alignItems: 'center' }}>
             <Image source={{ uri: f.uri }} style={{ width: 90, height: 90, borderRadius: 8, backgroundColor: '#ddd' }} />
-            <Text style={{ fontSize: 11 }}>{f.kind === 'video' ? '🎬 video' : `#${i + 1}`}</Text>
-            <Button title="Remove" onPress={() => setFiles((cur) => cur.filter((x) => x !== f))} disabled={busy} />
+            <Text style={{ fontSize: 11 }}>{f.kind === 'video' ? t('🎬 video') : `#${i + 1}`}</Text>
+            <Button title={t('Remove')} onPress={() => setFiles((cur) => cur.filter((x) => x !== f))} disabled={busy} />
           </View>
         ))}
       </View>
-      <Button title="Add photos / videos" onPress={choose} disabled={busy || files.length >= MAX_POST_SLIDES} />
+      <Button title={t('Add photos / videos')} onPress={choose} disabled={busy || files.length >= MAX_POST_SLIDES} />
 
       <TextInput
         value={caption}
         onChangeText={setCaption}
-        placeholder="Write a caption…"
+        placeholder={t('Write a caption…')}
         multiline
         maxLength={2200}
         style={{ borderWidth: 1, borderRadius: 8, padding: 12, minHeight: 80 }}
@@ -89,7 +90,7 @@ export default function NewPost() {
         ))}
       </View>
       {progress && <Text>{progress}</Text>}
-      <Button title="Publish" onPress={publish} disabled={busy || files.length === 0} />
+      <Button title={t('Publish')} onPress={publish} disabled={busy || files.length === 0} />
     </ScrollView>
   );
 }

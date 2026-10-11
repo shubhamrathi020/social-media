@@ -3,10 +3,9 @@ import { Button, View } from 'react-native';
 import { Text, TextInput } from '../../src/components/themed';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/state/auth';
-import { useT } from '../../src/i18n';
+import { t } from '../../src/i18n';
 
 export default function PhoneScreen() {
-  const t = useT();
   const [phone, setPhone] = useState('+');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -20,7 +19,7 @@ export default function PhoneScreen() {
       await requestOtp(phone.trim());
       router.push({ pathname: '/(auth)/otp', params: { phone: phone.trim() } });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong');
+      setError(e instanceof Error ? e.message : t(t('Something went wrong')));
     } finally {
       setBusy(false);
     }

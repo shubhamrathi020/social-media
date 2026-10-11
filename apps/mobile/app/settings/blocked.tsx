@@ -1,4 +1,5 @@
 import { Alert, Button, FlatList, View } from 'react-native';
+import { t } from '../../src/i18n';
 import { Text } from '../../src/components/themed';
 import { Stack } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,25 +12,25 @@ export default function Blocked() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ headerShown: true, title: 'Blocked users' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('Blocked users') }} />
       <FlatList
         data={data}
         keyExtractor={(u) => u.id}
         ListEmptyComponent={
-          isLoading ? null : <Text style={{ padding: 24, color: 'gray' }}>You have not blocked anyone.</Text>
+          isLoading ? null : <Text style={{ padding: 24, color: 'gray' }}>{t('You have not blocked anyone.')}</Text>
         }
         renderItem={({ item }) => (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 }}>
             <Avatar url={item.avatarUrl} name={item.displayName ?? item.username} />
             <Text style={{ flex: 1, fontWeight: '600' }}>{item.displayName ?? item.username}</Text>
             <Button
-              title="Unblock"
+              title={t('Unblock')}
               onPress={async () => {
                 try {
                   await settingsApi.unblock(item.id);
                   qc.invalidateQueries({ queryKey: ['blocked'] });
                 } catch (e) {
-                  Alert.alert('Could not unblock', e instanceof Error ? e.message : '');
+                  Alert.alert(t('Could not unblock'), e instanceof Error ? e.message : '');
                 }
               }}
             />

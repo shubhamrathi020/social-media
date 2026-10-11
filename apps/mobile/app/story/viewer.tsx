@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { t } from '../../src/i18n';
 import { Alert, Pressable, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Text, TextInput } from '../../src/components/themed';
@@ -96,9 +97,9 @@ export default function StoryViewer() {
       }
       setReply('');
       setPaused(false);
-      Alert.alert('Sent', 'Your reply was sent as a message.');
+      Alert.alert(t('Sent'), t('Your reply was sent as a message.'));
     } catch (e) {
-      Alert.alert('Could not reply', e instanceof Error ? e.message : '');
+      Alert.alert(t('Could not reply'), e instanceof Error ? e.message : '');
     }
   }
 
@@ -113,7 +114,7 @@ export default function StoryViewer() {
     return (
       <View style={{ flex: 1, backgroundColor: 'black', alignItems: 'center', justifyContent: 'center' }}>
         <Stack.Screen options={{ headerShown: false }} />
-        <Text style={{ color: 'white' }} onPress={() => router.back()}>Nothing to show · tap to close</Text>
+        <Text style={{ color: 'white' }} onPress={() => router.back()}>{t('Nothing to show · tap to close')}</Text>
       </View>
     );
   }
@@ -131,7 +132,7 @@ export default function StoryViewer() {
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 12 }}>
         <Text style={{ color: 'white', fontWeight: '600' }}>
-          {group.isMe ? 'You' : (group.author.displayName ?? group.author.username)}
+          {group.isMe ? t('You') : (group.author.displayName ?? group.author.username)}
           {current.audience === 'close_friends' ? '  ★' : ''}
         </Text>
         <Text style={{ color: 'white' }} onPress={() => router.back()}>✕</Text>
@@ -161,7 +162,7 @@ export default function StoryViewer() {
       {group.isMe ? (
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 16 }}>
           <Text style={{ color: 'white' }}>👁 {current.viewCount ?? 0}</Text>
-          <Text style={{ color: '#fca5a5' }} onPress={remove}>Delete</Text>
+          <Text style={{ color: '#fca5a5' }} onPress={remove}>{t('Delete')}</Text>
         </View>
       ) : (
         <TextInput
@@ -170,7 +171,7 @@ export default function StoryViewer() {
           onFocus={() => setPaused(true)}
           onBlur={() => setPaused(false)}
           onSubmitEditing={sendReply}
-          placeholder="Reply…"
+          placeholder={t('Reply…')}
           placeholderTextColor="#aaa"
           returnKeyType="send"
           style={{ margin: 12, borderWidth: 1, borderColor: '#666', borderRadius: 20, color: 'white', paddingHorizontal: 14, paddingVertical: 8 }}

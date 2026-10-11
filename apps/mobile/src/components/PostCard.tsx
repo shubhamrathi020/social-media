@@ -1,4 +1,5 @@
 import { memo, useState } from 'react';
+import { t } from '../i18n';
 import { Alert, FlatList, Pressable, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from './themed';
@@ -39,33 +40,33 @@ function PostCardBase({ post, onOpen }: { post: Post; onOpen?: () => void }) {
 
   function menu() {
     if (post.author.id === meId) {
-      Alert.alert('Post', undefined, [
+      Alert.alert(t('Post'), undefined, [
         {
-          text: 'Delete post',
+          text: t('Delete post'),
           style: 'destructive',
           onPress: async () => {
             try {
               await postsApi.remove(post.id);
               qc.invalidateQueries({ queryKey: ['feed'] });
             } catch (e) {
-              Alert.alert('Could not delete', e instanceof Error ? e.message : '');
+              Alert.alert(t('Could not delete'), e instanceof Error ? e.message : '');
             }
           },
         },
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('Cancel'), style: 'cancel' },
       ]);
       return;
     }
     const report = (reason: string) =>
       api('/reports', json({ entityType: 'post', entityId: post.id, reason }))
-        .then(() => Alert.alert('Thanks', 'We received your report.'))
-        .catch((e) => Alert.alert('Could not report', e instanceof Error ? e.message : ''));
-    Alert.alert('Report post', 'Why are you reporting this?', [
-      { text: 'Spam', onPress: () => report('spam') },
-      { text: 'Harassment', onPress: () => report('harassment') },
-      { text: 'Nudity', onPress: () => report('nudity') },
-      { text: 'Other', onPress: () => report('other') },
-      { text: 'Cancel', style: 'cancel' },
+        .then(() => Alert.alert(t('Thanks'), t('We received your report.')))
+        .catch((e) => Alert.alert(t('Could not report'), e instanceof Error ? e.message : ''));
+    Alert.alert(t('Report post'), t('Why are you reporting this?'), [
+      { text: t('Spam'), onPress: () => report('spam') },
+      { text: t('Harassment'), onPress: () => report('harassment') },
+      { text: t('Nudity'), onPress: () => report('nudity') },
+      { text: t('Other'), onPress: () => report('other') },
+      { text: t('Cancel'), style: 'cancel' },
     ]);
   }
 
@@ -96,10 +97,10 @@ function PostCardBase({ post, onOpen }: { post: Post; onOpen?: () => void }) {
         <Text style={{ fontWeight: '600' }}>{post.author.displayName ?? post.author.username ?? 'Unknown'}</Text>
         {post.audience !== 'friends' && (
           <Text style={{ color: 'gray', fontSize: 12 }}>
-            {post.audience === 'close_friends' ? '★ Close friends' : 'Public'}
+            {post.audience === 'close_friends' ? t('★ Close friends') : t('Public')}
           </Text>
         )}
-        <Pressable onPress={menu} style={{ marginLeft: 'auto', padding: 6 }} accessibilityRole="button" accessibilityLabel="Post options">
+        <Pressable onPress={menu} style={{ marginLeft: 'auto', padding: 6 }} accessibilityRole="button" accessibilityLabel={t('Post options')}>
           <Text style={{ fontSize: 18 }}>⋯</Text>
         </Pressable>
       </View>
@@ -109,7 +110,7 @@ function PostCardBase({ post, onOpen }: { post: Post; onOpen?: () => void }) {
           accessibilityRole="alert"
           style={{ marginHorizontal: 10, marginBottom: 6, padding: 8, borderRadius: 8, backgroundColor: '#fef3c7', color: '#92400e' }}
         >
-          Only you can see this post while it is being reviewed.
+          {t('Only you can see this post while it is being reviewed.')}
         </Text>
       )}
       <FlatList
@@ -136,7 +137,7 @@ function PostCardBase({ post, onOpen }: { post: Post; onOpen?: () => void }) {
         <Pressable
           onPress={() => toggle(1)}
           accessibilityRole="button"
-          accessibilityLabel={`Like, ${post.likeCount} ${post.likeCount === 1 ? 'like' : 'likes'}`}
+          accessibilityLabel={t('Like, {n} likes', { n: post.likeCount })}
           accessibilityState={{ selected: post.myReaction === 1 }}
         >
           <Text style={{ fontSize: 16 }}>{post.myReaction === 1 ? '❤️' : '🤍'} {post.likeCount}</Text>
@@ -144,16 +145,16 @@ function PostCardBase({ post, onOpen }: { post: Post; onOpen?: () => void }) {
         <Pressable
           onPress={() => toggle(-1)}
           accessibilityRole="button"
-          accessibilityLabel="Dislike"
+          accessibilityLabel={t('Dislike')}
           accessibilityState={{ selected: post.myReaction === -1 }}
         >
           <Text style={{ fontSize: 16, opacity: post.myReaction === -1 ? 1 : 0.5 }}>👎</Text>
         </Pressable>
-        <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Comments, ${post.commentCount}`}>
+        <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={t('Comments, {n}', { n: post.commentCount })}>
           <Text style={{ fontSize: 16 }}>💬 {post.commentCount}</Text>
         </Pressable>
         {post.dislikeCount !== undefined && (
-          <Text style={{ color: 'gray', marginLeft: 'auto' }}>{post.dislikeCount} dislikes</Text>
+          <Text style={{ color: 'gray', marginLeft: 'auto' }}>{t('{n} dislikes', { n: post.dislikeCount })}</Text>
         )}
       </View>
       {!!post.caption && (

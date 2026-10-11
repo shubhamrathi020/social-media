@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { t } from '../../src/i18n';
 import { Alert, Button, FlatList, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { Text, TextInput } from '../../src/components/themed';
 import { Stack, useLocalSearchParams } from 'expo-router';
@@ -61,18 +62,18 @@ export default function PostScreen() {
         qc.invalidateQueries({ queryKey: ['post', id] }),
       ]);
     } catch (e) {
-      Alert.alert('Could not comment', e instanceof Error ? e.message : '');
+      Alert.alert(t('Could not comment'), e instanceof Error ? e.message : '');
     }
   }
 
   function remove(c: Comment) {
-    Alert.alert('Delete comment?', undefined, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('Delete comment?'), undefined, [
+      { text: t('Cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('Delete'),
         style: 'destructive',
         onPress: async () => {
-          await postsApi.removeComment(c.id).catch((e) => Alert.alert('Could not delete', String(e.message)));
+          await postsApi.removeComment(c.id).catch((e) => Alert.alert(t('Could not delete'), String(e.message)));
           qc.invalidateQueries({ queryKey: ['comments', id] });
           qc.invalidateQueries({ queryKey: ['post', id] });
         },
@@ -85,23 +86,23 @@ export default function PostScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Stack.Screen options={{ headerShown: true, title: 'Post' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('Post') }} />
       <FlatList<Comment>
         data={items}
         keyExtractor={(c) => c.id}
         onEndReached={() => comments.hasNextPage && comments.fetchNextPage()}
         ListHeaderComponent={post.data ? <PostCard post={post.data} /> : null}
-        ListEmptyComponent={<Text style={{ padding: 16, color: 'gray' }}>No comments yet.</Text>}
+        ListEmptyComponent={<Text style={{ padding: 16, color: 'gray' }}>{t('No comments yet.')}</Text>}
         renderItem={({ item }) => (
           <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 12, paddingVertical: 8 }}>
             <Avatar url={item.author.avatarUrl} name={item.author.displayName ?? item.author.username} size={32} />
             <View style={{ flex: 1 }}>
               <Text>
                 <Text style={{ fontWeight: '600' }}>{item.author.displayName ?? item.author.username} </Text>
-                {item.deleted ? <Text style={{ fontStyle: 'italic', color: 'gray' }}>deleted</Text> : item.body}
+                {item.deleted ? <Text style={{ fontStyle: 'italic', color: 'gray' }}>{t('deleted')}</Text> : item.body}
               </Text>
               <View style={{ flexDirection: 'row', gap: 16, marginTop: 4 }}>
-                <Pressable onPress={() => setReplyTo(item)}><Text style={{ color: 'gray' }}>Reply</Text></Pressable>
+                <Pressable onPress={() => setReplyTo(item)}><Text style={{ color: 'gray' }}>{t('Reply')}</Text></Pressable>
                 {!item.deleted && (
                   <Pressable
                     onPress={async () => {
@@ -115,7 +116,7 @@ export default function PostScreen() {
                   </Pressable>
                 )}
                 {!item.deleted && canDelete(item) && (
-                  <Pressable onPress={() => remove(item)}><Text style={{ color: 'crimson' }}>Delete</Text></Pressable>
+                  <Pressable onPress={() => remove(item)}><Text style={{ color: 'crimson' }}>{t('Delete')}</Text></Pressable>
                 )}
               </View>
               {item.replyCount > 0 && <Replies postId={id} parentId={item.id} />}
@@ -126,18 +127,18 @@ export default function PostScreen() {
       {replyTo && (
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 12 }}>
           <Text style={{ color: 'gray' }}>Replying to {replyTo.author.displayName ?? replyTo.author.username}</Text>
-          <Pressable onPress={() => setReplyTo(null)} accessibilityRole="button" accessibilityLabel="Cancel reply"><Text>✕</Text></Pressable>
+          <Pressable onPress={() => setReplyTo(null)} accessibilityRole="button" accessibilityLabel={t('Cancel reply')}><Text>✕</Text></Pressable>
         </View>
       )}
       <View style={{ flexDirection: 'row', padding: 8, gap: 8, alignItems: 'center', borderTopWidth: 1, borderColor: 'rgba(127,127,127,0.25)' }}>
         <TextInput
           value={text}
           onChangeText={setText}
-          placeholder="Add a comment…"
+          placeholder={t('Add a comment…')}
           maxLength={1000}
           style={{ flex: 1, borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 }}
         />
-        <Button title="Post" onPress={submit} disabled={!text.trim()} />
+        <Button title={t('Post')} onPress={submit} disabled={!text.trim()} />
       </View>
     </KeyboardAvoidingView>
   );
@@ -153,7 +154,7 @@ function Replies({ postId, parentId }: { postId: string; parentId: string }) {
   return (
     <View style={{ marginTop: 6 }}>
       {!open ? (
-        <Pressable onPress={() => setOpen(true)}><Text style={{ color: 'gray' }}>View replies</Text></Pressable>
+        <Pressable onPress={() => setOpen(true)}><Text style={{ color: 'gray' }}>{t('View replies')}</Text></Pressable>
       ) : (
         (q.data?.items ?? []).map((r) => (
           <Text key={r.id} style={{ marginTop: 4 }}>

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { t } from '../i18n';
 import { FlatList, Pressable, View } from 'react-native';
 import { Text } from './themed';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -54,7 +55,7 @@ export function StoryTray({ kind }: { kind: StoryKind }) {
                 <Avatar url={me?.avatarUrl} name={me?.displayName ?? me?.username} size={56} />
               </View>
               <Text numberOfLines={1} style={{ fontSize: 12, marginTop: 4 }}>
-                {mine ? 'Your ' + kind : '+ Add ' + kind}
+                {mine ? t(kind === 'story' ? 'Your story' : 'Your status') : t(kind === 'story' ? '+ Add story' : '+ Add status')}
               </Text>
             </Pressable>
           );

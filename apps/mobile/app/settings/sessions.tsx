@@ -1,4 +1,5 @@
 import { Alert, Button, FlatList, View } from 'react-native';
+import { t } from '../../src/i18n';
 import { Text } from '../../src/components/themed';
 import { Stack } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -10,7 +11,7 @@ export default function Sessions() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ headerShown: true, title: 'Logged-in devices' }} />
+      <Stack.Screen options={{ headerShown: true, title: t('Logged-in devices') }} />
       <FlatList
         data={data}
         keyExtractor={(s) => s.id}
@@ -18,22 +19,24 @@ export default function Sessions() {
           <View style={{ padding: 14, gap: 4, borderBottomWidth: 1, borderColor: 'rgba(127,127,127,0.25)' }}>
             <Text style={{ fontWeight: '600', fontSize: 16 }}>
               {item.platform}
-              {item.current ? '  ·  this device' : ''}
+              {item.current ? t('  ·  this device') : ''}
             </Text>
             <Text style={{ color: 'gray' }}>
-              Signed in {new Date(item.createdAt).toLocaleDateString()} · active{' '}
-              {new Date(item.lastUsedAt).toLocaleString()}
+              {t('Signed in {date} · active {time}', {
+                date: new Date(item.createdAt).toLocaleDateString(),
+                time: new Date(item.lastUsedAt).toLocaleString(),
+              })}
             </Text>
             {!item.current && (
               <Button
-                title="Log out this device"
+                title={t('Log out this device')}
                 color="crimson"
                 onPress={async () => {
                   try {
                     await settingsApi.revokeSession(item.id);
                     qc.invalidateQueries({ queryKey: ['sessions'] });
                   } catch (e) {
-                    Alert.alert('Could not log out', e instanceof Error ? e.message : '');
+                    Alert.alert(t('Could not log out'), e instanceof Error ? e.message : '');
                   }
                 }}
               />

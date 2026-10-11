@@ -1,4 +1,5 @@
 import { ActivityIndicator, View } from 'react-native';
+import { t } from '../i18n';
 import { Image } from 'expo-image';
 import { useQuery } from '@tanstack/react-query';
 import { Text } from './themed';
@@ -21,6 +22,6 @@ export function EncryptedImage({ message }: { message: ChatMessage }) {
       </View>
     );
   }
-  if (!data) return <Text style={{ fontStyle: 'italic' }}>🔒 Photo could not be decrypted</Text>;
-  return <Image source={{ uri: data }} style={box} contentFit="cover" accessibilityLabel="Encrypted photo" />;
+  if (!data) return <Text style={{ fontStyle: 'italic' }}>{t('🔒 Photo could not be decrypted')}</Text>;
+  return <Image source={{ uri: data }} style={box} contentFit="cover" accessibilityLabel={t('Encrypted photo')} />;
 }

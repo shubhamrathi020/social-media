@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { t } from '../../src/i18n';
 import { ActivityIndicator, Alert, Button, View } from 'react-native';
 import { Text } from '../../src/components/themed';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -19,7 +20,7 @@ export default function WatchLive() {
       .join(id)
       .then(setJoin)
       .catch((e) => {
-        Alert.alert('Cannot watch', e instanceof Error ? e.message : '');
+        Alert.alert(t('Cannot watch'), e instanceof Error ? e.message : '');
         router.back();
       });
   }, [id, router]);
@@ -28,8 +29,8 @@ export default function WatchLive() {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: 'black' }}>
         <Stack.Screen options={{ headerShown: false }} />
-        <Text style={{ color: 'white', fontSize: 18 }}>This live video has ended</Text>
-        <Button title="Close" onPress={() => router.back()} />
+        <Text style={{ color: 'white', fontSize: 18 }}>{t('This live video has ended')}</Text>
+        <Button title={t('Close')} onPress={() => router.back()} />
       </View>
     );
   }
