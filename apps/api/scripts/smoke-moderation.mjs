@@ -6,6 +6,11 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const sharp = require('sharp');
 const { Client } = require('pg');
+const ffmpeg = require('ffmpeg-static');
+const { execFileSync } = require('node:child_process');
+const { mkdtempSync, readFileSync } = require('node:fs');
+const { tmpdir } = require('node:os');
+const { join } = require('node:path');
 
 const HTTP = process.env.API_URL ?? 'http://localhost:3000/v1';
 const CODE = process.env.OTP_DEV_CODE ?? '123456';
@@ -52,6 +57,24 @@ async function upload(user, purpose, rgb) {
   }
   return { status: 'timeout' };
 }
+async function uploadVideo(user, colours) {
+  // Two-second segments of solid colour, e.g. ['gray', 'red'] = harmless start, "explicit" later.
+  const dir = mkdtempSync(join(tmpdir(), 'modvid-'));
+  const out = join(dir, 'v.mp4');
+  const inputs = colours.flatMap((c) => ['-f', 'lavfi', '-i', `color=c=${c}:s=320x240:d=2:r=12`]);
+  const concat = colours.map((_, i) => `[${i}:v]`).join('') + `concat=n=${colours.length}:v=1:a=0[v]`;
+  execFileSync(ffmpeg, ['-y', ...inputs, '-filter_complex', concat, '-map', '[v]', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', out], { stdio: 'ignore' });
+  const bytes = readFileSync(out);
+  const up = await call('POST', '/media/uploads', user.token, { kind: 'video', purpose: 'post', mime: 'video/mp4', sizeBytes: bytes.length });
+  await fetch(up.data.upload.url, { method: 'PUT', headers: up.data.upload.headers, body: bytes });
+  await call('POST', `/media/${up.data.id}/complete`, user.token);
+  for (let i = 0; i < 120; i++) {
+    const m = await call('GET', `/media/${up.data.id}`, user.token);
+    if (m.data.status === 'ready' || m.data.status === 'failed') return m.data;
+    await sleep(500);
+  }
+  return { status: 'timeout' };
+}
 const GREY = { r: 120, g: 120, b: 120 };
 const BORDERLINE = { r: 220, g: 50, b: 50 }; // score ~0.67: held for review
 const EXPLICIT = { r: 255, g: 0, b: 0 }; // score 1.0: rejected
@@ -84,6 +107,10 @@ let m = await upload(author, 'post', EXPLICIT);
 check('clearly explicit upload is rejected', m.status === 'failed' && /not allowed/.test(m.error ?? ''), JSON.stringify(m));
 m = await upload(author, 'avatar', EXPLICIT);
 check('explicit avatar is rejected too', m.status === 'failed');
+m = await uploadVideo(author, ['gray', 'gray']);
+check('ordinary video passes the frame scan', m.status === 'ready', JSON.stringify(m));
+m = await uploadVideo(author, ['gray', 'red']);
+check('video that turns explicit after the first frames is rejected', m.status === 'failed' && /not allowed/.test(m.error ?? ''), JSON.stringify(m));
 const ok = await upload(author, 'post', GREY);
 check('ordinary upload passes', ok.status === 'ready');
 const border = await upload(author, 'post', BORDERLINE);

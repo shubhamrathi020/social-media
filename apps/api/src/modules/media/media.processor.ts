@@ -5,7 +5,7 @@ import { spawn } from 'child_process';
 import ffmpegPath from 'ffmpeg-static';
 import ffprobe from 'ffprobe-static';
 import Redis from 'ioredis';
-import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { Pool } from 'pg';
@@ -135,6 +135,28 @@ export class MediaProcessor implements OnModuleInit, OnModuleDestroy {
     return score;
   }
 
+  /**
+   * Highest explicit score over the poster and up to VIDEO_SCAN_FRAMES frames sampled evenly across the video,
+   * so content that appears after the first second is caught too. Rejects as soon as one frame crosses the line.
+   */
+  private async screenVideo(video: string, poster: string, duration: number, dir: string): Promise<number | null> {
+    const frames = Math.max(1, Number(process.env.VIDEO_SCAN_FRAMES ?? 8));
+    const interval = Math.max(duration / frames, 0.5);
+    await run(ffmpegPath as string, [
+      '-y', '-i', video,
+      '-vf', `fps=1/${interval.toFixed(3)},scale=320:-2`,
+      '-frames:v', String(frames),
+      join(dir, 'scan-%02d.jpg'),
+    ]);
+    const files = (await readdir(dir)).filter((f) => f.startsWith('scan-')).sort();
+    let worst: number | null = null;
+    for (const file of [poster, ...files.map((f) => join(dir, f))]) {
+      const score = await this.screen(await readFile(file)); // throws RejectedMedia on a clear hit
+      if (score !== null) worst = Math.max(worst ?? 0, score);
+    }
+    return worst;
+  }
+
   private async image(m: any, raw: Buffer): Promise<Result> {
     let main: { data: Buffer; info: sharp.OutputInfo };
     let thumb: Buffer;
@@ -208,6 +230,9 @@ export class MediaProcessor implements OnModuleInit, OnModuleDestroy {
         '-frames:v', '1', '-vf', 'scale=400:-2', poster,
       ]);
 
+      // Scan frames spread across the whole video (plus the poster) before anything is stored.
+      const nsfwScore = await this.screenVideo(dst, poster, info.duration, dir);
+
       const out = await readFile(dst);
       const base = `u/${m.owner_id}/${m.id}`;
       await this.storage.putBuffer(`${base}/main.mp4`, out, 'video/mp4');
@@ -226,8 +251,7 @@ export class MediaProcessor implements OnModuleInit, OnModuleDestroy {
         width: ov.width,
         height: ov.height,
         durationMs: Math.round(info.duration * 1000),
-        // Only the poster frame is scanned; full-video scanning is a known gap.
-        nsfwScore: await this.screen(await readFile(poster)),
+        nsfwScore,
       };
     } finally {
       await rm(dir, { recursive: true, force: true });
