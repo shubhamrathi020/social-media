@@ -64,11 +64,23 @@ secure storage) need a phone build.
 
 ## 5. Still open before a public launch
 
+Done since the previous checklist:
+- **End-to-end encrypted chats** (1:1 and groups, text and photos) once every member has an app version with keys.
+  Design and limits are in [E2E.md](E2E.md). In the store listing say "end-to-end encrypted chats", not "Signal
+  protocol": there is no forward secrecy yet.
+- **Video scanning** samples frames across the whole video (`VIDEO_SCAN_FRAMES`, default 8) as well as the poster.
+  The NSFW model is still a first filter, not a guarantee; reports and the moderator console stay the backstop.
+- **Translations**: every screen, alert and notification text is in English and Hindi; the language switches
+  instantly from Settings.
+
 Free, but not done:
-- **Messages are not end-to-end encrypted.** The schema is prepared (`payload`, `enc_version`, `devices`); the Signal
-  protocol work is a separate phase. Say so honestly in the store listing; do not claim E2E.
-- **Video scanning** looks at the poster frame only; the NSFW model is a first filter, not a guarantee.
-- **Translations** cover tabs, sign-in and settings in Hindi; other screens are English.
+- **E2E hardening**: forward secrecy (Signal double ratchet / MLS), a visible warning when a contact's key changes,
+  and multi-device history transfer. See "Limits" in E2E.md.
+- **Videos and voice notes in chat**: chats send text and photos only today; new attachment kinds should reuse the
+  encrypted-file path in `apps/mobile/src/chat/e2e.ts`.
+- **More languages**: add a dictionary next to `apps/mobile/src/i18n/hi.ts` and a row in `LANGUAGES`; push
+  notification text sent by the server is still English.
+- **Live-stream moderation**: live video is not scanned while it is broadcast; a moderator ends it by suspending the host.
 - **Nothing has run on a physical phone yet.** The app bundles for Android/iOS in CI and its main flows were exercised
   in a browser against the real API (sign-in, feed, likes, comments, chats, groups, friends, alerts, settings, dark
   mode, Hindi). Camera, contacts, push, video playback and live video still need a device.
@@ -77,7 +89,7 @@ Needs you (accounts, money or legal text):
 - SMS provider and DLT registration, Expo/Apple/Google accounts (sections 2 and 3).
 - **Privacy policy and terms.** Write and host them (any static page works, e.g. GitHub Pages); both stores require
   a URL. Describe: phone number, contacts (sent once, stored only as keyed hashes, opt-in), uploaded media, push tokens,
-  message content stored unencrypted at rest on the server, moderation and image scanning, 30-day erasure.
+  message content (unencrypted for chats that are not E2E, ciphertext only for E2E chats), moderation and image scanning, 30-day erasure.
 
 ## 6. Suggested beta plan
 
