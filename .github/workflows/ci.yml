@@ -104,7 +104,7 @@ jobs:
         working-directory: apps/api
         run: |
           set -e
-          for suite in friends media chat groups posts stories live notifications account; do
+          for suite in friends media chat groups posts stories live notifications account e2e; do
             echo "::group::smoke-$suite"
             node scripts/smoke-$suite.mjs
             echo "::endgroup::"

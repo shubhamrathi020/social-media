@@ -30,11 +30,32 @@ export interface MessageView {
   deleted: boolean;
   status?: 'sent' | 'delivered' | 'read';
   media?: unknown;
+  /** Present for end-to-end encrypted messages; `payload` is then empty. */
+  encrypted?: {
+    version: number;
+    ciphertext: string;
+    senderDeviceId: string | null;
+    senderKey: string | null;
+    /** device id -> sealed message key */
+    keys: Record<string, string>;
+  };
 }
 
 const MSG_COLS = `m.id, m.conversation_id AS "conversationId", m.sender_id AS "senderId",
   m.client_msg_id AS "clientMsgId", m.type, m.payload, m.enc_version AS "encVersion",
-  m.reply_to_id AS "replyToId", m.created_at AS "createdAt", m.deleted_at AS "deletedAt"`;
+  m.reply_to_id AS "replyToId", m.created_at AS "createdAt", m.deleted_at AS "deletedAt",
+  m.sender_device_id AS "senderDeviceId", m.attachment_media_id AS "attachmentId"`;
+
+/** Largest encrypted message body accepted (base64 of nonce + ciphertext). */
+const MAX_CIPHERTEXT_BYTES = 64 * 1024;
+
+export interface EncryptedInput {
+  ciphertext: string;
+  keys: { deviceId: string; box: string }[];
+}
+
+/** Which envelopes to include: all (socket broadcast, each device picks its own), one device, or none. */
+type KeyScope = { deviceId?: string | null };
 
 const STATUS_SQL = `(SELECT CASE WHEN bool_and(r.read_at IS NOT NULL) THEN 'read'
                                  WHEN bool_and(r.delivered_at IS NOT NULL) THEN 'delivered'
@@ -61,10 +82,11 @@ export class ChatService {
     const client = await this.pg.connect();
     try {
       await client.query('BEGIN');
+      const e2e = await this.everyoneHasKeys([me, otherId]);
       const ins = await client.query(
-        `INSERT INTO conversations (type, created_by, direct_key) VALUES ('direct', $1, $2)
+        `INSERT INTO conversations (type, created_by, direct_key, e2e) VALUES ('direct', $1, $2, $3)
          ON CONFLICT (direct_key) DO NOTHING RETURNING id`,
-        [me, key],
+        [me, key, e2e],
       );
       let id: string;
       if (ins.rows[0]) {
@@ -97,9 +119,10 @@ export class ChatService {
     const client = await this.pg.connect();
     try {
       await client.query('BEGIN');
+      const e2e = await this.everyoneHasKeys([me, ...others]);
       const c = await client.query(
-        `INSERT INTO conversations (type, title, created_by) VALUES ('group', $1, $2) RETURNING id`,
-        [title, me],
+        `INSERT INTO conversations (type, title, created_by, e2e) VALUES ('group', $1, $2, $3) RETURNING id`,
+        [title, me, e2e],
       );
       const id: string = c.rows[0].id;
       await client.query(
@@ -128,7 +151,8 @@ export class ChatService {
                   AND m.sender_id <> $1 AND m.deleted_at IS NULL
                   AND NOT EXISTS (SELECT 1 FROM message_hidden h WHERE h.user_id = $1 AND h.message_id = m.id)
               ) AS unread,
-              c.avatar_media_id AS "avatarMediaId", cm.role AS "myRole", cm.muted_until AS "mutedUntil"
+              c.avatar_media_id AS "avatarMediaId", cm.role AS "myRole", cm.muted_until AS "mutedUntil",
+              c.e2e
          FROM conversation_members cm JOIN conversations c ON c.id = cm.conversation_id
         WHERE cm.user_id = $1
         ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC
@@ -146,7 +170,8 @@ export class ChatService {
                 WHERE m.conversation_id = c.id AND m.id > cm.last_read_message_id
                   AND m.created_at >= cm.joined_at AND m.type <> 'system'
                   AND m.sender_id <> $1 AND m.deleted_at IS NULL) AS unread,
-              c.avatar_media_id AS "avatarMediaId", cm.role AS "myRole", cm.muted_until AS "mutedUntil"
+              c.avatar_media_id AS "avatarMediaId", cm.role AS "myRole", cm.muted_until AS "mutedUntil",
+              c.e2e
          FROM conversations c JOIN conversation_members cm ON cm.conversation_id = c.id AND cm.user_id = $1
         WHERE c.id = $2`,
       [me, id],
@@ -173,12 +198,13 @@ export class ChatService {
         `SELECT ${MSG_COLS}, ${STATUS_SQL} AS status FROM messages m WHERE m.id = ANY($1::bigint[])`,
         [lastIds],
       );
-      for (const v of await this.toViews(me, m.rows)) last.set(v.id, v);
+      for (const v of await this.toViews(me, m.rows, { deviceId: null })) last.set(v.id, v);
     }
     return rows.map((r) => ({
       id: r.id,
       type: r.type,
       title: r.title,
+      e2e: !!r.e2e,
       avatarUrl: r.avatarMediaId ? (groupAvatars.get(r.avatarMediaId)?.thumbUrl ?? null) : null,
       myRole: r.myRole as 'admin' | 'member',
       mutedUntil: r.mutedUntil as string | null,
@@ -195,20 +221,61 @@ export class ChatService {
 
   async send(
     me: string,
-    input: { conversationId: string; clientMsgId: string; type: MessageType; payload: unknown; replyToId?: string },
+    input: {
+      conversationId: string;
+      clientMsgId: string;
+      type: MessageType;
+      payload?: unknown;
+      replyToId?: string;
+      encrypted?: EncryptedInput;
+      attachmentId?: string;
+    },
+    sessionId?: string,
   ): Promise<{ message: MessageView; duplicate: boolean }> {
     const members = await this.memberIds(input.conversationId, me);
-    const payload = normalisePayload(input.type, input.payload);
 
-    const conv = await this.pg.query('SELECT type FROM conversations WHERE id = $1', [input.conversationId]);
+    const conv = await this.pg.query('SELECT type, e2e FROM conversations WHERE id = $1', [input.conversationId]);
     if (conv.rows[0].type === 'direct') {
       const other = members.find((id) => id !== me)!;
       await this.assertCanMessage(me, other, { requireSetting: false });
     }
-    if (input.type !== 'text') {
-      await this.media.assertUsable(me, payload.mediaId!, ['chat']);
-      const kind = (await this.media.resolve([payload.mediaId!])).get(payload.mediaId!)?.kind;
-      if (kind !== input.type) throw new BadRequestException(`Media is a ${kind}, not ${input.type}`);
+
+    let payload: MessagePayload = {};
+    let body: Buffer;
+    let encVersion = 0;
+    let senderDeviceId: string | null = null;
+    if (conv.rows[0].e2e) {
+      // The server cannot read these messages, so it cannot accept plaintext in them either (no downgrade).
+      if (!input.encrypted) {
+        throw new BadRequestException('This conversation is end-to-end encrypted; send an encrypted message');
+      }
+      const device = sessionId ? await this.deviceOfSession(sessionId) : null;
+      if (!device?.hasKey) throw new BadRequestException("Register this device's encryption key first");
+      senderDeviceId = device.id;
+      body = Buffer.from(input.encrypted.ciphertext, 'base64');
+      if (body.length < 40 || body.length > MAX_CIPHERTEXT_BYTES) throw new BadRequestException('Invalid ciphertext');
+      // Every current device of every member must get an envelope, so nobody is silently left out.
+      const required = (await this.devicesWithKeys(input.conversationId)).map((d) => d.deviceId).sort();
+      const provided = [...new Set(input.encrypted.keys.map((k) => k.deviceId))].sort();
+      if (required.join() !== provided.join()) {
+        throw new ConflictException({
+          statusCode: 409,
+          code: 'DEVICES_CHANGED',
+          message: 'The devices in this conversation changed; encrypt again for the current list',
+          devices: await this.devicesWithKeys(input.conversationId),
+        });
+      }
+      encVersion = 1;
+      if (input.attachmentId) await this.media.assertUsable(me, input.attachmentId, ['chat']);
+    } else {
+      if (input.encrypted) throw new BadRequestException('This conversation is not end-to-end encrypted');
+      payload = normalisePayload(input.type, input.payload);
+      if (input.type !== 'text') {
+        await this.media.assertUsable(me, payload.mediaId!, ['chat']);
+        const kind = (await this.media.resolve([payload.mediaId!])).get(payload.mediaId!)?.kind;
+        if (kind !== input.type) throw new BadRequestException(`Media is a ${kind}, not ${input.type}`);
+      }
+      body = Buffer.from(JSON.stringify(payload), 'utf8');
     }
     if (input.replyToId) {
       const rep = await this.pg.query('SELECT 1 FROM messages WHERE id = $1 AND conversation_id = $2', [
@@ -224,8 +291,9 @@ export class ChatService {
     try {
       await client.query('BEGIN');
       const ins = await client.query(
-        `INSERT INTO messages (conversation_id, sender_id, client_msg_id, type, payload, reply_to_id)
-         VALUES ($1,$2,$3,$4,$5,$6)
+        `INSERT INTO messages (conversation_id, sender_id, client_msg_id, type, payload, reply_to_id,
+                               enc_version, sender_device_id, attachment_media_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
          ON CONFLICT (conversation_id, sender_id, client_msg_id) DO NOTHING
          RETURNING id`,
         [
@@ -233,13 +301,24 @@ export class ChatService {
           me,
           input.clientMsgId,
           input.type,
-          Buffer.from(JSON.stringify(payload), 'utf8'),
+          body,
           input.replyToId ?? null,
+          encVersion,
+          senderDeviceId,
+          encVersion ? (input.attachmentId ?? null) : null,
         ],
       );
       let id: string;
       if (ins.rows[0]) {
         id = ins.rows[0].id;
+        if (encVersion && input.encrypted) {
+          await client.query(
+            `INSERT INTO message_keys (message_id, device_id, box)
+             SELECT $1, k.device_id, decode(k.box, 'base64')
+               FROM unnest($2::uuid[], $3::text[]) AS k(device_id, box)`,
+            [id, input.encrypted.keys.map((k) => k.deviceId), input.encrypted.keys.map((k) => k.box)],
+          );
+        }
         const others = members.filter((m) => m !== me);
         if (others.length) {
           await client.query(
@@ -292,13 +371,18 @@ export class ChatService {
         senderId: me,
         recipientIds: members.filter((m) => m !== me),
         type: input.type,
-        preview: input.type === 'text' ? (payload.text ?? '').slice(0, 100) : (label[input.type] ?? 'New message'),
+        // Encrypted messages are unreadable here, so their push says only that something arrived.
+        preview: encVersion
+          ? 'New message'
+          : input.type === 'text'
+            ? (payload.text ?? '').slice(0, 100)
+            : (label[input.type] ?? 'New message'),
       });
     }
     return { message, duplicate };
   }
 
-  async history(me: string, conversationId: string, before?: string, limit = 30) {
+  async history(me: string, conversationId: string, before?: string, limit = 30, deviceId: string | null = null) {
     await this.assertMember(me, conversationId);
     const r = await this.pg.query(
       `SELECT ${MSG_COLS}, ${STATUS_SQL} AS status
@@ -310,11 +394,11 @@ export class ChatService {
         ORDER BY m.id DESC LIMIT $4`,
       [me, conversationId, before ?? null, Math.min(limit, 100)],
     );
-    return this.toViews(me, r.rows);
+    return this.toViews(me, r.rows, { deviceId });
   }
 
   /** Everything addressed to me after a cursor; clients call this after (re)connecting. */
-  async sync(me: string, after: string, limit = 200) {
+  async sync(me: string, after: string, limit = 200, deviceId: string | null = null) {
     const r = await this.pg.query(
       `SELECT ${MSG_COLS}, ${STATUS_SQL} AS status
          FROM messages m
@@ -324,7 +408,7 @@ export class ChatService {
         ORDER BY m.id ASC LIMIT $3`,
       [me, after, Math.min(limit, 500)],
     );
-    return this.toViews(me, r.rows);
+    return this.toViews(me, r.rows, { deviceId });
   }
 
   async markDelivered(me: string, messageIds: string[]) {
@@ -387,9 +471,11 @@ export class ChatService {
       throw new ConflictException('Too old to delete for everyone');
     }
     await this.pg.query(
-      `UPDATE messages SET deleted_at = now(), payload = $2 WHERE id = $1 AND deleted_at IS NULL`,
+      `UPDATE messages SET deleted_at = now(), payload = $2, enc_version = 0, attachment_media_id = NULL
+        WHERE id = $1 AND deleted_at IS NULL`,
       [messageId, Buffer.from('{}', 'utf8')],
     );
+    await this.pg.query('DELETE FROM message_keys WHERE message_id = $1', [messageId]);
     this.realtime.emitToUsers(members, 'message:deleted', {
       messageId,
       conversationId: m.conversationId,
@@ -421,6 +507,82 @@ export class ChatService {
     const [view] = await this.toViews(actorId, [row]);
     this.realtime.emitToUsers(audience, 'message:new', view);
     return view;
+  }
+
+  // ---- end-to-end encryption -------------------------------------------------------------------------
+
+  /** Stores the public identity key that this session's device generated. A device key never changes. */
+  async registerDeviceKey(sessionId: string, identityKey: string) {
+    const device = await this.deviceOfSession(sessionId);
+    if (!device) throw new BadRequestException('Unknown session');
+    const key = Buffer.from(identityKey, 'base64');
+    if (key.length !== 32) throw new BadRequestException('identityKey must be a 32-byte X25519 public key');
+    const r = await this.pg.query(
+      `UPDATE devices SET public_identity_key = $2 WHERE id = $1 AND public_identity_key IS NULL RETURNING id`,
+      [device.id, key],
+    );
+    if (r.rowCount === 0) {
+      const same = await this.pg.query('SELECT 1 FROM devices WHERE id = $1 AND public_identity_key = $2', [device.id, key]);
+      if (same.rowCount === 0) {
+        throw new ConflictException('This device already has a key; signing in again registers a new device');
+      }
+    }
+    return { deviceId: device.id };
+  }
+
+  /** Current encryption-capable devices of every member: the recipients a sender must encrypt for. */
+  async conversationDevices(me: string, conversationId: string) {
+    await this.memberIds(conversationId, me);
+    return this.devicesWithKeys(conversationId);
+  }
+
+  /** Identity keys of one user's current devices (for safety numbers). */
+  async userDeviceKeys(me: string, userId: string) {
+    const rel = (await this.friends.relationships(me, [userId])).get(userId);
+    if (userId !== me && (rel === 'blocked' || rel === 'blocked_by')) throw new NotFoundException();
+    const r = await this.pg.query(
+      `SELECT d.id AS "deviceId", encode(d.public_identity_key, 'base64') AS "identityKey"
+         FROM devices d
+        WHERE d.user_id = $1 AND d.public_identity_key IS NOT NULL
+          AND EXISTS (SELECT 1 FROM sessions s WHERE s.device_id = d.id AND s.revoked_at IS NULL AND s.expires_at > now())
+        ORDER BY d.created_at`,
+      [userId],
+    );
+    return r.rows as { deviceId: string; identityKey: string }[];
+  }
+
+  async deviceOfSession(sessionId: string): Promise<{ id: string; hasKey: boolean } | null> {
+    const r = await this.pg.query(
+      `SELECT d.id, d.public_identity_key IS NOT NULL AS "hasKey"
+         FROM sessions s JOIN devices d ON d.id = s.device_id
+        WHERE s.id = $1 AND s.revoked_at IS NULL`,
+      [sessionId],
+    );
+    return r.rows[0] ?? null;
+  }
+
+  private async devicesWithKeys(conversationId: string) {
+    const r = await this.pg.query(
+      `SELECT d.id AS "deviceId", d.user_id AS "userId", encode(d.public_identity_key, 'base64') AS "identityKey"
+         FROM conversation_members cm JOIN devices d ON d.user_id = cm.user_id
+        WHERE cm.conversation_id = $1 AND d.public_identity_key IS NOT NULL
+          AND EXISTS (SELECT 1 FROM sessions s WHERE s.device_id = d.id AND s.revoked_at IS NULL AND s.expires_at > now())
+        ORDER BY d.id`,
+      [conversationId],
+    );
+    return r.rows as { deviceId: string; userId: string; identityKey: string }[];
+  }
+
+  /** New conversations are encrypted when every member has at least one encryption-capable device. */
+  async everyoneHasKeys(userIds: string[]): Promise<boolean> {
+    if (process.env.E2E_ENABLED === 'false') return false;
+    const r = await this.pg.query(
+      `SELECT count(DISTINCT d.user_id)::int AS n FROM devices d
+        WHERE d.user_id = ANY($1::uuid[]) AND d.public_identity_key IS NOT NULL
+          AND EXISTS (SELECT 1 FROM sessions s WHERE s.device_id = d.id AND s.revoked_at IS NULL AND s.expires_at > now())`,
+      [[...new Set(userIds)]],
+    );
+    return r.rows[0].n === new Set(userIds).size;
   }
 
   /** Member ids, throwing 404 when `me` is not one of them. */
@@ -472,15 +634,42 @@ export class ChatService {
     }
   }
 
-  private async toViews(me: string, rows: any[]): Promise<MessageView[]> {
+  private async toViews(me: string, rows: any[], scope: KeyScope = {}): Promise<MessageView[]> {
     const parsed = rows.map((row) => {
       let payload: any;
-      if (row.deletedAt) payload = {};
-      else if (row.encVersion === 0) payload = JSON.parse((row.payload as Buffer).toString('utf8'));
-      else payload = { encrypted: (row.payload as Buffer).toString('base64') };
+      if (row.deletedAt || row.encVersion !== 0) payload = {};
+      else payload = JSON.parse((row.payload as Buffer).toString('utf8'));
       return { row, payload };
     });
-    const mediaIds = parsed.map((p) => p.payload.mediaId).filter(Boolean) as string[];
+
+    // Envelopes for encrypted messages, plus the sending devices' public keys so recipients can authenticate them.
+    const enc = rows.filter((r) => r.encVersion === 1 && !r.deletedAt);
+    const envelopes = new Map<string, Record<string, string>>();
+    const senderKeys = new Map<string, string>();
+    if (enc.length && scope.deviceId !== null) {
+      const k = await this.pg.query(
+        `SELECT message_id::text AS "messageId", device_id AS "deviceId", encode(box, 'base64') AS box
+           FROM message_keys WHERE message_id = ANY($1::bigint[]) AND ($2::uuid IS NULL OR device_id = $2)`,
+        [enc.map((r) => r.id), scope.deviceId ?? null],
+      );
+      for (const row of k.rows) {
+        if (!envelopes.has(row.messageId)) envelopes.set(row.messageId, {});
+        envelopes.get(row.messageId)![row.deviceId] = row.box;
+      }
+    }
+    const senderDevices = [...new Set(enc.map((r) => r.senderDeviceId).filter(Boolean))];
+    if (senderDevices.length) {
+      const d = await this.pg.query(
+        `SELECT id, encode(public_identity_key, 'base64') AS key FROM devices WHERE id = ANY($1::uuid[])`,
+        [senderDevices],
+      );
+      for (const row of d.rows) senderKeys.set(row.id, row.key);
+    }
+
+    const mediaIds = [
+      ...(parsed.map((p) => p.payload.mediaId).filter(Boolean) as string[]),
+      ...(rows.map((r) => r.attachmentId).filter(Boolean) as string[]),
+    ];
     const media = await this.media.resolve(mediaIds);
     return parsed.map(({ row, payload }) => ({
       id: String(row.id),
@@ -493,7 +682,18 @@ export class ChatService {
       createdAt: row.createdAt,
       deleted: !!row.deletedAt,
       status: row.senderId === me ? (row.status ?? 'sent') : undefined,
-      media: payload.mediaId ? media.get(payload.mediaId) : undefined,
+      media: payload.mediaId ? media.get(payload.mediaId) : row.attachmentId ? media.get(row.attachmentId) : undefined,
+      ...(row.encVersion === 1 && !row.deletedAt
+        ? {
+            encrypted: {
+              version: row.encVersion,
+              ciphertext: (row.payload as Buffer).toString('base64'),
+              senderDeviceId: row.senderDeviceId,
+              senderKey: senderKeys.get(row.senderDeviceId) ?? null,
+              keys: envelopes.get(String(row.id)) ?? {},
+            },
+          }
+        : {}),
     }));
   }
 }

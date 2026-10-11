@@ -75,6 +75,10 @@ export class GroupsService {
     for (const u of toAdd) {
       if (rels.get(u) !== 'friends') throw new BadRequestException('You can only add your friends');
     }
+    const e2e = (await this.pg.query('SELECT e2e FROM conversations WHERE id = $1', [id])).rows[0]?.e2e;
+    if (e2e && !(await this.chat.everyoneHasKeys(toAdd))) {
+      throw new BadRequestException('Everyone added to an encrypted group needs an up-to-date app');
+    }
 
     await this.pg.query(
       `INSERT INTO conversation_members (conversation_id, user_id, role)

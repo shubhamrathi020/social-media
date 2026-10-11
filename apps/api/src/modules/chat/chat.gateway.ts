@@ -50,7 +50,7 @@ export class ChatGateway {
   send(@ConnectedSocket() s: Socket, @MessageBody() body: unknown) {
     return ack(async () => {
       const dto = await parse(SendMessageDto, body);
-      const { message, duplicate } = await this.chat.send(s.data.userId, dto);
+      const { message, duplicate } = await this.chat.send(s.data.userId, dto, s.data.sessionId);
       return { message, duplicate };
     });
   }

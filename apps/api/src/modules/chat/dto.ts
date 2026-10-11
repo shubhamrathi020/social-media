@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -13,9 +14,32 @@ import {
   Length,
   MaxLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 
 export const MESSAGE_TYPES = ['text', 'image', 'video', 'audio', 'file'] as const;
+
+export class EnvelopeDto {
+  @IsUUID()
+  deviceId!: string;
+
+  @IsString()
+  @MaxLength(200)
+  box!: string;
+}
+
+export class EncryptedDto {
+  @IsString()
+  @MaxLength(90_000)
+  ciphertext!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(2000)
+  @ValidateNested({ each: true })
+  @Type(() => EnvelopeDto)
+  keys!: EnvelopeDto[];
+}
 
 export class SendMessageDto {
   @IsUUID()
@@ -28,12 +52,24 @@ export class SendMessageDto {
   @IsIn(MESSAGE_TYPES)
   type!: (typeof MESSAGE_TYPES)[number];
 
+  /** Plaintext body; omitted for end-to-end encrypted messages. */
+  @ValidateIf((o) => !o.encrypted)
   @IsObject()
-  payload!: Record<string, unknown>;
+  payload?: Record<string, unknown>;
 
   @IsOptional()
   @IsNumberString()
   replyToId?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EncryptedDto)
+  encrypted?: EncryptedDto;
+
+  /** Encrypted messages: the uploaded (client-encrypted) attachment, so the server can serve it. */
+  @IsOptional()
+  @IsUUID()
+  attachmentId?: string;
 }
 
 /** REST variant: the conversation comes from the URL. */
@@ -45,12 +81,24 @@ export class SendMessageBodyDto {
   @IsIn(MESSAGE_TYPES)
   type!: (typeof MESSAGE_TYPES)[number];
 
+  /** Plaintext body; omitted for end-to-end encrypted messages. */
+  @ValidateIf((o) => !o.encrypted)
   @IsObject()
-  payload!: Record<string, unknown>;
+  payload?: Record<string, unknown>;
 
   @IsOptional()
   @IsNumberString()
   replyToId?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EncryptedDto)
+  encrypted?: EncryptedDto;
+
+  /** Encrypted messages: the uploaded (client-encrypted) attachment, so the server can serve it. */
+  @IsOptional()
+  @IsUUID()
+  attachmentId?: string;
 }
 
 export class CreateConversationDto {
@@ -133,4 +181,11 @@ export class MuteDto {
   @ValidateIf((_, v) => v !== null)
   @IsISO8601()
   mutedUntil!: string | null;
+}
+
+export class DeviceKeyDto {
+  /** base64 X25519 public key (32 bytes) */
+  @IsString()
+  @Length(40, 64)
+  identityKey!: string;
 }

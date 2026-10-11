@@ -209,6 +209,15 @@ export class StoriesService {
     if (r.rows[0].authorId === me) throw new BadRequestException('You cannot reply to your own story');
 
     const conv = await this.chat.openDirect(me, r.rows[0].authorId);
+    if (conv.e2e) {
+      // The app sends the reply itself, encrypted, with storyId inside the payload.
+      throw new ConflictException({
+        statusCode: 409,
+        code: 'E2E_CONVERSATION',
+        message: 'Send this reply from the app as an encrypted message',
+        conversationId: conv.id,
+      });
+    }
     const { message } = await this.chat.send(me, {
       conversationId: conv.id,
       clientMsgId: `story-${id}-${Date.now()}`,

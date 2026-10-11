@@ -15,3 +15,4 @@ export const SocketEvents = {
   PostCounters: 'post:counters',
   Presence: 'presence',
 } as const;
+export * from './e2e';

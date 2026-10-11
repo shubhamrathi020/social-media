@@ -18,6 +18,7 @@ import { ChatService } from './chat.service';
 import { GroupsService } from './groups.service';
 import {
   AddMembersDto,
+  DeviceKeyDto,
   CreateConversationDto,
   MarkReadDto,
   MuteDto,
@@ -96,13 +97,14 @@ export class ChatController {
   }
 
   @Get('conversations/:id/messages')
-  history(
+  async history(
     @CurrentUser() u: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Query('before') before?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.chat.history(u.userId, id, bigintStr(before, 'before'), limit ? Number(limit) || 30 : 30);
+    const device = await this.chat.deviceOfSession(u.sessionId);
+    return this.chat.history(u.userId, id, bigintStr(before, 'before'), limit ? Number(limit) || 30 : 30, device?.id ?? null);
   }
 
   /** HTTP fallback for sending; the socket event is preferred. */
@@ -112,7 +114,7 @@ export class ChatController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SendMessageBodyDto,
   ) {
-    const { message } = await this.chat.send(u.userId, { ...dto, conversationId: id });
+    const { message } = await this.chat.send(u.userId, { ...dto, conversationId: id }, u.sessionId);
     return message;
   }
 
@@ -132,7 +134,29 @@ export class ChatController {
 
   /** Messages after a cursor, for catching up after being offline. */
   @Get('chat/sync')
-  sync(@CurrentUser() u: AuthUser, @Query('after') after = '0', @Query('limit') limit?: string) {
-    return this.chat.sync(u.userId, bigintStr(after, 'after')!, limit ? Number(limit) || 200 : 200);
+  async sync(@CurrentUser() u: AuthUser, @Query('after') after = '0', @Query('limit') limit?: string) {
+    const device = await this.chat.deviceOfSession(u.sessionId);
+    return this.chat.sync(u.userId, bigintStr(after, 'after')!, limit ? Number(limit) || 200 : 200, device?.id ?? null);
+  }
+
+  // ---- end-to-end encryption ----
+
+  /** Registers the public half of the key pair this device generated. */
+  @Put('devices/me/keys')
+  @HttpCode(200)
+  registerKey(@CurrentUser() u: AuthUser, @Body() dto: DeviceKeyDto) {
+    return this.chat.registerDeviceKey(u.sessionId, dto.identityKey);
+  }
+
+  /** Devices a sender must encrypt for. */
+  @Get('conversations/:id/devices')
+  devices(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.chat.conversationDevices(u.userId, id);
+  }
+
+  /** A user's device keys, for comparing safety numbers. */
+  @Get('users/:id/device-keys')
+  deviceKeys(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.chat.userDeviceKeys(u.userId, id);
   }
 }

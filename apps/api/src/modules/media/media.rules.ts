@@ -9,7 +9,8 @@ export const MIME_BY_KIND: Record<MediaKind, string[]> = {
   image: ['image/jpeg', 'image/png', 'image/webp'],
   video: ['video/mp4', 'video/quicktime', 'video/webm'],
   audio: ['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/webm'],
-  file: ['application/pdf', 'application/zip', 'text/plain'],
+  // application/octet-stream: attachments encrypted on the device for end-to-end encrypted chats (chat only).
+  file: ['application/pdf', 'application/zip', 'text/plain', 'application/octet-stream'],
 };
 
 export const MAX_BYTES: Record<MediaKind, number> = {
