@@ -4,7 +4,12 @@ import { API_URL } from './config';
 const REFRESH_KEY = 'refreshToken';
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+    /** Parsed JSON error body, e.g. { code: 'E2E_CONVERSATION', conversationId } */
+    public body: Record<string, unknown> | null = null,
+  ) {
     super(message);
   }
 }
@@ -68,7 +73,7 @@ export async function api<T = unknown>(path: string, init: RequestInit = {}, aut
   }
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new ApiError(res.status, body?.message ?? `Request failed (${res.status})`);
+    throw new ApiError(res.status, body?.message ?? `Request failed (${res.status})`, body);
   }
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
 }

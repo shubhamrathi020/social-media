@@ -12,6 +12,8 @@ import { useLive } from '../../src/chat/live-state';
 import { upsertMessage } from '../../src/chat/use-chat-events';
 import { ChatMessage, Conversation, conversationTitle, describeSystem, memberName } from '../../src/chat/types';
 import { useTheme } from '../../src/theme';
+import { decryptIncoming, sendEncrypted, uploadEncryptedFile } from '../../src/chat/e2e';
+import { EncryptedImage } from '../../src/components/EncryptedImage';
 
 // A stable empty list: returning a fresh [] from a store selector makes Zustand re-render forever.
 const NO_TYPERS: string[] = [];
@@ -60,7 +62,7 @@ export default function ChatScreen() {
 
   const { data: messages = [] } = useQuery({
     queryKey: ['messages', id],
-    queryFn: () => api<ChatMessage[]>(`/conversations/${id}/messages?limit=40`),
+    queryFn: async () => (await api<ChatMessage[]>(`/conversations/${id}/messages?limit=40`)).map(decryptIncoming),
   });
 
   // Mark everything from others as read whenever a newer one arrives while the screen is open.
@@ -76,20 +78,20 @@ export default function ChatScreen() {
   const loadOlder = useCallback(async () => {
     const oldest = messages[messages.length - 1];
     if (!oldest) return;
-    const older = await api<ChatMessage[]>(`/conversations/${id}/messages?limit=40&before=${oldest.id}`);
+    const older = (await api<ChatMessage[]>(`/conversations/${id}/messages?limit=40&before=${oldest.id}`)).map(decryptIncoming);
     if (older.length) qc.setQueryData<ChatMessage[]>(['messages', id], (cur) => [...(cur ?? []), ...older]);
   }, [messages, id, qc]);
 
-  async function sendMessage(type: ChatMessage['type'], payload: ChatMessage['payload']) {
+  async function sendMessage(type: ChatMessage['type'], payload: ChatMessage['payload'], attachmentId?: string) {
     const clientMsgId = uuid();
     const optimistic: ChatMessage = {
       id: `local-${clientMsgId}`, conversationId: id, senderId: meId, clientMsgId, type, payload,
       replyToId: null, createdAt: new Date().toISOString(), deleted: false, status: 'sending',
     };
     upsertMessage(qc, optimistic);
-    const res = await emitAck<{ message: ChatMessage }>('message:send', {
-      conversationId: id, clientMsgId, type, payload,
-    });
+    const res = conv?.e2e
+      ? await sendEncrypted({ conversationId: id, clientMsgId, type, payload, attachmentId })
+      : await emitAck<{ message: ChatMessage }>('message:send', { conversationId: id, clientMsgId, type, payload });
     if (res.ok) upsertMessage(qc, res.data.message);
     else upsertMessage(qc, { ...optimistic, status: 'failed' });
   }
@@ -106,6 +108,12 @@ export default function ChatScreen() {
     try {
       const file = await pickFromLibrary(['image']);
       if (!file) return;
+      if (conv?.e2e) {
+        // Encrypted on the phone; the server stores an unreadable blob and never sees the photo.
+        const sealed = await uploadEncryptedFile(file.uri);
+        await sendMessage('image', { fileKey: sealed.fileKey, fileNonce: sealed.fileNonce, mime: file.mime }, sealed.attachmentId);
+        return;
+      }
       const media = await uploadMedia(file, 'chat');
       await sendMessage('image', { mediaId: media.id });
     } catch (e) {
@@ -193,7 +201,13 @@ export default function ChatScreen() {
                 <Text style={{ fontStyle: 'italic', color: mine ? '#dbeafe' : 'gray' }}>Message deleted</Text>
               ) : (
                 <>
-                  {item.media?.thumbUrl && (
+                  {item.undecryptable && (
+                    <Text style={{ fontStyle: 'italic', color: mine ? '#dbeafe' : c.muted }}>
+                      🔒 Sent before you signed in on this device
+                    </Text>
+                  )}
+                  {item.encrypted && item.type === 'image' && !item.undecryptable && <EncryptedImage message={item} />}
+                  {!item.encrypted && item.media?.thumbUrl && (
                     <Image
                       source={{ uri: item.media.thumbUrl }}
                       style={{ width: 200, height: 150, borderRadius: 8, marginBottom: 4 }}
@@ -228,7 +242,7 @@ export default function ChatScreen() {
         <TextInput
           value={text}
           onChangeText={onChange}
-          placeholder="Message"
+          placeholder={conv?.e2e ? 'Encrypted message' : 'Message'}
           multiline
           style={{ flex: 1, borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, maxHeight: 120 }}
         />

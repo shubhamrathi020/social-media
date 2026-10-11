@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../state/auth';
 import { connectSocket, disconnectSocket, emitAck } from './socket';
 import { useLive } from './live-state';
+import { decryptIncoming } from './e2e';
 import { ChatMessage, Conversation } from './types';
 
 const bigger = (a: string, b: string) => (BigInt(a) >= BigInt(b) ? a : b);
@@ -55,7 +56,7 @@ export function useChatEvents() {
         saveCursor(ids.reduce((a, b) => bigger(a, b), '0'));
       } else {
         const missed = await api<ChatMessage[]>(`/chat/sync?after=${cursor}`).catch(() => []);
-        for (const m of missed) {
+        for (const m of missed.map(decryptIncoming)) {
           upsertMessage(qc, m);
           saveCursor(m.id);
         }
@@ -66,7 +67,8 @@ export function useChatEvents() {
     };
 
     s.on('connect', () => void catchUp());
-    s.on('message:new', (m: ChatMessage) => {
+    s.on('message:new', (raw: ChatMessage) => {
+      const m = decryptIncoming(raw);
       upsertMessage(qc, m);
       saveCursor(m.id);
       qc.invalidateQueries({ queryKey: ['conversations'] });

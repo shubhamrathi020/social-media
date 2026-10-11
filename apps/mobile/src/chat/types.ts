@@ -28,12 +28,31 @@ export interface ChatMessage {
   senderId: string;
   clientMsgId: string;
   type: 'text' | 'image' | 'video' | 'audio' | 'file' | 'system';
-  payload: { text?: string; mediaId?: string; caption?: string; storyId?: string } & Partial<SystemPayload>;
+  payload: {
+    text?: string;
+    mediaId?: string;
+    caption?: string;
+    storyId?: string;
+    /** encrypted attachments: decryption key, nonce and real type travel inside the encrypted payload */
+    fileKey?: string;
+    fileNonce?: string;
+    mime?: string;
+  } & Partial<SystemPayload>;
   replyToId: string | null;
   createdAt: string;
   deleted: boolean;
   status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
   media?: ChatMedia;
+  /** End-to-end encrypted messages as delivered by the server; decrypted on the phone into `payload`. */
+  encrypted?: {
+    version: number;
+    ciphertext: string;
+    senderDeviceId: string | null;
+    senderKey: string | null;
+    keys: Record<string, string>;
+  };
+  /** Encrypted, but this device holds no key for it (it was sent before you signed in here). */
+  undecryptable?: boolean;
 }
 
 export interface ChatMember {
@@ -48,6 +67,8 @@ export interface Conversation {
   id: string;
   type: 'direct' | 'group';
   title: string | null;
+  /** End-to-end encrypted: the server cannot read messages in this conversation. */
+  e2e: boolean;
   avatarUrl: string | null;
   myRole: 'admin' | 'member';
   mutedUntil: string | null;
@@ -96,6 +117,7 @@ export function describeSystem(m: ChatMessage, names: Map<string, string>, meId:
 export function previewOf(m: ChatMessage | null, names?: Map<string, string>, meId?: string) {
   if (!m) return 'No messages yet';
   if (m.deleted) return 'This message was deleted';
+  if (m.encrypted) return '🔒 Message';
   if (m.type === 'system') return names && meId ? describeSystem(m, names, meId) : 'Group updated';
   if (m.type === 'text') return m.payload.text ?? '';
   return { image: 'Photo', video: 'Video', audio: 'Voice message', file: 'File' }[m.type];

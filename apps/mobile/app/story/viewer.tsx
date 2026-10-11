@@ -6,6 +6,8 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { StoryItem, StoryKind, storiesApi } from '../../src/lib/stories';
+import { ApiError } from '../../src/lib/api';
+import { sendEncrypted } from '../../src/chat/e2e';
 
 const IMAGE_MS = 5000;
 
@@ -79,7 +81,19 @@ export default function StoryViewer() {
   async function sendReply() {
     if (!current || !reply.trim()) return;
     try {
-      await storiesApi.reply(current.id, reply.trim());
+      try {
+        await storiesApi.reply(current.id, reply.trim());
+      } catch (e) {
+        // Chats with this person are end-to-end encrypted, so the server cannot write the reply for us.
+        if (!(e instanceof ApiError && e.body?.code === 'E2E_CONVERSATION')) throw e;
+        const res = await sendEncrypted({
+          conversationId: String(e.body.conversationId),
+          clientMsgId: `story-${current.id}-${Date.now()}`,
+          type: 'text',
+          payload: { text: reply.trim(), storyId: current.id },
+        });
+        if (!res.ok) throw new Error(res.error.message);
+      }
       setReply('');
       setPaused(false);
       Alert.alert('Sent', 'Your reply was sent as a message.');

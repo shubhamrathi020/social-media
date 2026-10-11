@@ -10,6 +10,7 @@ import { groupsApi } from '../../src/lib/groups';
 import { pickFromLibrary, uploadMedia } from '../../src/lib/media';
 import { useAuth } from '../../src/state/auth';
 import { useTheme } from '../../src/theme';
+import { safetyNumberWith } from '../../src/chat/e2e';
 
 const MUTE_OPTIONS: { label: string; hours: number }[] = [
   { label: '8 hours', hours: 8 },
@@ -135,6 +136,20 @@ export default function ConversationInfo() {
         <Text style={{ fontSize: 22, fontWeight: '700', textAlign: 'center' }}>{conversationTitle(conv, meId)}</Text>
       )}
 
+      {conv.e2e ? (
+        <View style={{ backgroundColor: c.subtle, borderRadius: 10, padding: 12, gap: 6 }}>
+          <Text style={{ fontWeight: '700' }}>🔒 End-to-end encrypted</Text>
+          <Text style={{ color: c.muted }}>
+            Messages and photos in this chat can only be read by the people in it. Not even the app's servers can read them.
+          </Text>
+          {!isGroup && <SafetyNumber meId={meId} otherId={conv.members.find((m) => m.id !== meId)?.id} />}
+        </View>
+      ) : (
+        <Text style={{ color: c.muted }}>
+          This chat is not end-to-end encrypted because someone in it uses an older version of the app.
+        </Text>
+      )}
+
       <Button
         title={muted ? `Unmute (muted until ${new Date(conv.mutedUntil!).toLocaleString()})` : 'Mute notifications'}
         onPress={muted ? () => run(() => groupsApi.mute(id, null)) : mute}
@@ -184,5 +199,24 @@ export default function ConversationInfo() {
         </View>
       )}
     </ScrollView>
+  );
+}
+
+/** Both people should see the same digits; if they differ, someone is intercepting the conversation. */
+function SafetyNumber({ meId, otherId }: { meId: string; otherId?: string }) {
+  const c = useTheme();
+  const { data } = useQuery({
+    queryKey: ['safety-number', meId, otherId],
+    queryFn: () => safetyNumberWith(meId, otherId!),
+    enabled: !!otherId,
+  });
+  if (!data) return null;
+  return (
+    <View style={{ gap: 4 }}>
+      <Text style={{ color: c.muted }}>Security code (compare with your friend's phone):</Text>
+      <Text selectable style={{ fontFamily: 'monospace', fontSize: 15, letterSpacing: 1 }} accessibilityLabel={`Security code ${data}`}>
+        {data}
+      </Text>
+    </View>
   );
 }

@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { api, json, tokens } from '../lib/api';
+import { ensureDeviceKeys, forgetDeviceKeysInMemory } from '../chat/e2e';
 
 export interface Me {
   id: string;
@@ -37,6 +38,7 @@ export const useAuth = create<AuthState>((set) => {
       if (!(await tokens.getRefresh())) return set({ status: 'signedOut' });
       try {
         const me = await api<Me>('/users/me');
+        await registerKeys(me.id);
         set({ status: 'signedIn', me });
       } catch {
         set({ status: 'signedOut', me: null });
@@ -56,6 +58,7 @@ export const useAuth = create<AuthState>((set) => {
       tokens.setAccess(r.accessToken);
       await tokens.setRefresh(r.refreshToken);
       const me = await api<Me>('/users/me');
+      await registerKeys(me.id);
       set({ status: 'signedIn', me });
     },
 
@@ -67,7 +70,17 @@ export const useAuth = create<AuthState>((set) => {
     async logout() {
       await api('/auth/logout', { method: 'POST' }).catch(() => undefined);
       await tokens.clear();
+      forgetDeviceKeysInMemory();
       set({ status: 'signedOut', me: null });
     },
   };
 });
+
+/** Encryption keys are set up at sign-in. A failure must not lock people out; encrypted chats just stay unreadable. */
+async function registerKeys(userId: string) {
+  try {
+    await ensureDeviceKeys(userId);
+  } catch (e) {
+    console.warn('could not set up encryption keys', e);
+  }
+}
